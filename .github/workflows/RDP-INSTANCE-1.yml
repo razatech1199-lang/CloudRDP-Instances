@@ -1,0 +1,63 @@
+
+name: RDP-INSTANCE-1 - Ubuntu RDP
+on:
+  workflow_dispatch:
+jobs:
+  rdp-instance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup XFCE and XRDP (CloudRDP)
+        run: |
+          #!/bin/bash
+          
+          # CloudRDP Automated Setup Script
+          # Description: Installs XFCE4 and XRDP for a remote desktop experience.
+          # Compatibility: Ubuntu 20.04+, Debian 11+
+          
+          export DEBIAN_FRONTEND=noninteractive
+          
+          # 1. Update and Upgrade
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          
+          # 2. Install XFCE4 Desktop Environment
+          sudo apt-get install -y xfce4 xfce4-goodies
+          
+          # 3. Install XRDP
+          sudo apt-get install -y xrdp
+          
+          # 4. Configure XRDP to use XFCE
+          echo "xfce4-session" > ~/.xsession
+          
+          # 5. Fix for Polkit (Avoids authorization popups in RDP)
+          sudo bash -c 'cat > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla <<EOF
+          [Allow Colord all Users]
+          Identity=unix-user:*
+          Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
+          ResultAny=no
+          ResultInactive=no
+          ResultActive=yes
+          EOF'
+          
+          # 6. Set XRDP User Permissions
+          sudo adduser xrdp ssl-cert
+          
+          # 7. Restart XRDP Service
+          sudo systemctl restart xrdp
+          sudo systemctl enable xrdp
+          
+          # 8. Firewall Configuration (UFW)
+          sudo ufw allow 3389/tcp
+          
+          echo "CloudRDP: Setup Complete. Use port 3389 to connect."
+          
+      - name: Setup Ngrok
+        env:
+          NGROK_AUTH_TOKEN: razatech1199-lang
+        run: |
+          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+          tar -xvzf ngrok-v3-stable-linux-amd64.tgz
+          ./ngrok authtoken $NGROK_AUTH_TOKEN
+          ./ngrok tcp 3389 &
+      - name: Keep Alive
+        run: sleep 21600
