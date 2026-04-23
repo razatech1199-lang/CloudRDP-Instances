@@ -30,6 +30,7 @@ jobs:
           echo "xfce4-session" > ~/.xsession
           
           # 5. Fix for Polkit (Avoids authorization popups in RDP)
+          sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
           sudo bash -c 'cat > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla <<EOF
           [Allow Colord all Users]
           Identity=unix-user:*
