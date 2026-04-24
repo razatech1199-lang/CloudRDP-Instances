@@ -27,7 +27,8 @@ jobs:
           sudo apt-get install -y xrdp
           
           # 4. Configure XRDP to use XFCE
-          echo "xfce4-session" > ~/.xsession
+          echo "startxfce4" > ~/.xsession
+          sudo sed -i 's/^test -x \/etc\/X11\/Xsession && exec \/etc\/X11\/Xsession/exec startxfce4/g' /etc/xrdp/startwm.sh
           
           # 5. Fix for Polkit (Avoids authorization popups in RDP)
           sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
@@ -44,14 +45,17 @@ jobs:
           sudo adduser xrdp ssl-cert
           
           # 7. Restart XRDP Service
-          sudo systemctl restart xrdp
-          sudo systemctl enable xrdp
+          sudo service xrdp restart
+          sleep 5
+          sudo netstat -tuln | grep 3389 || echo "XRDP NOT LISTENING!"
           
-          # 8. Firewall Configuration (UFW)
-          sudo ufw allow 3389/tcp
+          # 8. Firewall Configuration (UFW - Optional but safe)
+          sudo ufw allow 3389/tcp || true
           
           # 9. Set Password for RDP Login
-          echo "$USER:CloudRDP2026!" | sudo chpasswd
+          # GitHub Actions default user is 'runner'
+          echo "runner:CloudRDP2026!" | sudo chpasswd
+          echo "root:CloudRDP2026!" | sudo chpasswd
           
           echo "CloudRDP: Setup Complete. Use port 3389 to connect."
           
