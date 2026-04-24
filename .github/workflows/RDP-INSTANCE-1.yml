@@ -55,20 +55,14 @@ jobs:
           
           echo "CloudRDP: Setup Complete. Use port 3389 to connect."
           
-      - name: Setup Tunnel (No-Card Fallback)
+      - name: Setup Bore Tunnel (Final Boss Fix)
         run: |
-          # Attempt Pinggy first
-          ssh -p 443 -o StrictHostKeyChecking=no -R 0:localhost:3389 a.pinggy.io 2>&1 | tee tunnel.log &
-          sleep 20
-          URL=$(grep -o 'a.pinggy.io:[0-9]*' tunnel.log | head -n 1)
-          
-          # If Pinggy fails, try Serveo
-          if [ -z "$URL" ]; then
-            ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net 2>&1 | tee -a tunnel.log &
-            sleep 20
-            URL=$(grep -o 'serveo.net:[0-9]*' tunnel.log | head -n 1)
-          fi
-          
+          # Download and run Bore
+          wget https://github.com/ekzhang/bore/releases/download/v0.4.1/bore-v0.4.1-x86_64-unknown-linux-musl.tar.gz
+          tar -xvzf bore-v0.4.1-x86_64-unknown-linux-musl.tar.gz
+          ./bore local 3389 --to bore.pub > bore.log 2>&1 &
+          sleep 15
+          URL=$(grep -o 'bore.pub:[0-9]*' bore.log | head -n 1)
           echo "CLOUD_RDP_URL=$URL" >> $GITHUB_ENV
           echo "------------------------------------------"
           echo "SUCCESS: RDP is ready at $URL"
