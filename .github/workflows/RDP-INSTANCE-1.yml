@@ -67,7 +67,7 @@ jobs:
           sudo apt update && sudo apt install ngrok -y
           
           # Start Ngrok
-          ngrok config add-authtoken 3Ci4P8xk92EhzPNw8Qkcdc7kGgH_3nzbXHmwYFpnzzhUwyUVC
+          ngrok config add-authtoken 3Ci4P0xk92EhzPNw8Qkcdc7kGgH_3nzbXHMwYFpnzzhUwyUVC
           ngrok tcp 3389 --log=stdout > ngrok.log &
           sleep 10
           
@@ -76,12 +76,13 @@ jobs:
           echo "CLOUD_RDP_URL=$NGROK_URL" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "0f87c147-c17e-4e95-8a14-fd4fad233312" ]; then
-            curl -X POST "http://YOUR_NGROK_BACKEND_URL/instance/0f87c147-c17e-4e95-8a14-fd4fad233312/report?ip_address=$NGROK_URL"
+          if [ ! -z "0252bea8-a757-42f7-afce-1a5cef72d01c" ]; then
+            echo "Reporting to ..."
+            curl -X POST "/instance/0252bea8-a757-42f7-afce-1a5cef72d01c/report?ip_address=$NGROK_URL" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
-          echo "SUCCESS: Connect to $NGROK_URL"
+          echo "CLOUD_RDP_URL: $NGROK_URL"
           echo "------------------------------------------"
       - name: Keep Alive
         run: sleep 21600
