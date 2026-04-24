@@ -55,20 +55,16 @@ jobs:
           
           echo "CloudRDP: Setup Complete. Use port 3389 to connect."
           
-      - name: Setup Ngrok
-        env:
-          NGROK_AUTH_TOKEN: 3Ci4P0xk92EhzPNw8Qkcdc7kGgH_3nzbXHMwYFpnzzhUwyUVC
+      - name: Setup Serveo (No-Card Tunnel)
         run: |
-          wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
-          tar -xvzf ngrok-v3-stable-linux-amd64.tgz
-          ./ngrok authtoken "$NGROK_AUTH_TOKEN"
-          ./ngrok tcp 3389 --log=stdout > ngrok.log &
-          sleep 10
-          # Extract the URL from the local Ngrok API
-          export NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | grep -o '0.tcp.[a-z]*.ngrok.io:[0-9]*' | head -n 1)
-          echo "CLOUD_RDP_URL=$NGROK_URL" >> $GITHUB_ENV
+          # Use Serveo to create a TCP tunnel for RDP
+          # -R 0:localhost:3389 asks Serveo to assign a random port
+          ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net 2>&1 | tee serveo.log &
+          sleep 15
+          export SERVEO_URL=$(grep -o 'serveo.net:[0-9]*' serveo.log | head -n 1)
+          echo "CLOUD_RDP_URL=$SERVEO_URL" >> $GITHUB_ENV
           echo "------------------------------------------"
-          echo "SUCCESS: RDP is ready at $NGROK_URL"
+          echo "SUCCESS: RDP is ready at $SERVEO_URL"
           echo "------------------------------------------"
       - name: Keep Alive
         run: sleep 21600
