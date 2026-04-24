@@ -55,16 +55,15 @@ jobs:
           
           echo "CloudRDP: Setup Complete. Use port 3389 to connect."
           
-      - name: Setup Serveo (No-Card Tunnel)
+      - name: Setup Pinggy (No-Card Tunnel)
         run: |
-          # Use Serveo to create a TCP tunnel for RDP
-          # -R 0:localhost:3389 asks Serveo to assign a random port
-          ssh -o StrictHostKeyChecking=no -R 0:localhost:3389 serveo.net 2>&1 | tee serveo.log &
-          sleep 15
-          export SERVEO_URL=$(grep -o 'serveo.net:[0-9]*' serveo.log | head -n 1)
-          echo "CLOUD_RDP_URL=$SERVEO_URL" >> $GITHUB_ENV
+          # Use Pinggy to create a TCP tunnel for RDP
+          ssh -p 443 -o StrictHostKeyChecking=no -R 0:localhost:3389 a.pinggy.io 2>&1 | tee pinggy.log &
+          sleep 20
+          export PINGGY_URL=$(grep -o 'a.pinggy.io:[0-9]*' pinggy.log | head -n 1)
+          echo "CLOUD_RDP_URL=$PINGGY_URL" >> $GITHUB_ENV
           echo "------------------------------------------"
-          echo "SUCCESS: RDP is ready at $SERVEO_URL"
+          echo "SUCCESS: RDP is ready at $PINGGY_URL"
           echo "------------------------------------------"
       - name: Keep Alive
         run: sleep 21600
