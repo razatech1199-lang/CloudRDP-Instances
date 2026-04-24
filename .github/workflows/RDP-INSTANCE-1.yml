@@ -59,12 +59,14 @@ jobs:
           
           echo "CloudRDP: Setup Complete. Use port 3389 to connect."
           
-      - name: Setup Universal Tunnel (Port 80 Fix)
+      - name: Setup Final Tunnel (Localhost.run)
         run: |
-          # Use Serveo on Port 80 (Standard Web Port) to bypass ISP blocks
-          ssh -o StrictHostKeyChecking=no -R 80:localhost:3389 serveo.net 2>&1 | tee tunnel.log &
+          # Use Localhost.run to create a TCP tunnel
+          ssh -o StrictHostKeyChecking=no -R 3389:localhost:3389 nokey@localhost.run 2>&1 | tee tunnel.log &
           sleep 20
-          URL=$(grep -o '[a-z0-9]*\.serveo\.net' tunnel.log | head -n 1)
+          URL=$(grep -o '[a-z0-9\.-]*\.lhr\.life' tunnel.log | head -n 1)
+          if [ -z "$URL" ]; then URL=$(grep -o 'localhost\.run:[0-9]*' tunnel.log | head -n 1); fi
+          
           echo "CLOUD_RDP_URL=$URL" >> $GITHUB_ENV
           echo "------------------------------------------"
           echo "SUCCESS: RDP is ready at $URL"
