@@ -59,30 +59,29 @@ jobs:
           
           echo "CloudRDP: Setup Complete. Use port 3389 to connect."
           
-      - name: Setup Ngrok Tunnel and Report
+      - name: Setup Tmate Tunnel and Report
         run: |
-          # Install Ngrok
-          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
-          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
-          sudo apt update && sudo apt install ngrok -y
+          # Install Tmate
+          sudo apt update && sudo apt install tmate -y
           
-          # Start Ngrok
-          ngrok config add-authtoken 3Ci4P0xk92EhzPNw8Qkcdc7kGgH_3nzbXHMwYFpnzzhUwyUVC
-          ngrok tcp 3389 --log=stdout > ngrok.log &
-          sleep 10
+          # Start Tmate
+          tmate -S /tmp/tmate.sock new-session -d
+          tmate -S /tmp/tmate.sock wait-for-session-ready
           
-          # Extract TCP URL
-          export NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
-          echo "CLOUD_RDP_URL=$NGROK_URL" >> $GITHUB_ENV
+          # Extract SSH string
+          export TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
+          echo "CLOUD_RDP_URL=$TMATE_SSH" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "25518e54-e7a1-45cc-83c7-e3919228013a" ]; then
+          if [ ! -z "5296c456-55e3-4baa-a201-d585b1f7b41b" ]; then
             echo "Reporting to ..."
-            curl -X POST "/instance/25518e54-e7a1-45cc-83c7-e3919228013a/report?ip_address=$NGROK_URL" || echo "Report failed, but continuing..."
+            # Use query param to send the SSH string (encoded by curl)
+            curl -X POST "/instance/5296c456-55e3-4baa-a201-d585b1f7b41b/report?ip_address=$TMATE_SSH" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
-          echo "CLOUD_RDP_URL: $NGROK_URL"
+          echo "TMATE SSH: $TMATE_SSH"
+          echo "COMMAND: ssh -L 3389:localhost:3389 $TMATE_SSH"
           echo "------------------------------------------"
       - name: Keep Alive
         run: sleep 21600
