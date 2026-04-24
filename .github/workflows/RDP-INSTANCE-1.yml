@@ -76,9 +76,9 @@ jobs:
           echo "CLOUD_RDP_URL=$NGROK_URL" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "935a47f2-c18e-4f2b-b3c8-e293fc3000b1" ]; then
+          if [ ! -z "25518e54-e7a1-45cc-83c7-e3919228013a" ]; then
             echo "Reporting to ..."
-            curl -X POST "/instance/935a47f2-c18e-4f2b-b3c8-e293fc3000b1/report?ip_address=$NGROK_URL" || echo "Report failed, but continuing..."
+            curl -X POST "/instance/25518e54-e7a1-45cc-83c7-e3919228013a/report?ip_address=$NGROK_URL" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
