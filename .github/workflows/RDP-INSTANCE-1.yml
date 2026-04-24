@@ -57,7 +57,7 @@ jobs:
           
       - name: Setup Ngrok
         env:
-          NGROK_AUTH_TOKEN: ngrok config add-authtoken 3Ci4P0xk92EhzPNw8Qkcdc7kGgH_3nzbXHMwYFpnzzhUwyUVC
+          NGROK_AUTH_TOKEN: 3Ci4P0xk92EhzPNw8Qkcdc7kGgH_3nzbXHMwYFpnzzhUwyUVC
         run: |
           wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
           tar -xvzf ngrok-v3-stable-linux-amd64.tgz
