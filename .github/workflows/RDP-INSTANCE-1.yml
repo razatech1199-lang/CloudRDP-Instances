@@ -74,7 +74,11 @@ jobs:
           export TMATE_SSH=""
           for i in {1..30}; do
             TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
-            if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then break; fi
+            if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then 
+              # Remove 'ssh ' prefix if present
+              TMATE_SSH=$(echo $TMATE_SSH | sed 's/^ssh //')
+              break
+            fi
             sleep 2
           done
           
@@ -82,10 +86,11 @@ jobs:
           echo "CLOUD_RDP_URL=$TMATE_SSH" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "e97941cf-fcc4-4e09-ab95-29c85c234b64" ]; then
+          if [ ! -z "bdf51363-ebbc-46b5-a32b-c13fb2b0e849" ]; then
             echo "Reporting to ..."
-            # Use query param to send the SSH string (encoded by curl)
-            curl -X POST "/instance/e97941cf-fcc4-4e09-ab95-29c85c234b64/report?ip_address=$TMATE_SSH" || echo "Report failed, but continuing..."
+            # URL encode the SSH string for curl
+            ENCODED_SSH=$(echo $TMATE_SSH | sed 's/@/%40/g')
+            curl -X POST "/instance/bdf51363-ebbc-46b5-a32b-c13fb2b0e849/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
