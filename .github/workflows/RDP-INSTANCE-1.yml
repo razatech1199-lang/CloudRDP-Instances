@@ -59,17 +59,29 @@ jobs:
           
           echo "CloudRDP: Setup Complete. Use port 3389 to connect."
           
-      - name: Setup Final Tunnel (Localhost.run)
+      - name: Setup Ngrok Tunnel and Report
         run: |
-          # Use Localhost.run to create a TCP tunnel
-          ssh -o StrictHostKeyChecking=no -R 3389:localhost:3389 nokey@localhost.run 2>&1 | tee tunnel.log &
-          sleep 20
-          URL=$(grep -o '[a-z0-9\.-]*\.lhr\.life' tunnel.log | head -n 1)
-          if [ -z "$URL" ]; then URL=$(grep -o 'localhost\.run:[0-9]*' tunnel.log | head -n 1); fi
+          # Install Ngrok
+          curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+          echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+          sudo apt update && sudo apt install ngrok -y
           
-          echo "CLOUD_RDP_URL=$URL" >> $GITHUB_ENV
+          # Start Ngrok
+          ngrok config add-authtoken 3Ci4P8xk92EhzPNw8Qkcdc7kGgH_3nzbXHmwYFpnzzhUwyUVC
+          ngrok tcp 3389 --log=stdout > ngrok.log &
+          sleep 10
+          
+          # Extract TCP URL
+          export NGROK_URL=$(curl -s http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url')
+          echo "CLOUD_RDP_URL=$NGROK_URL" >> $GITHUB_ENV
+          
+          # Report back to backend
+          if [ ! -z "0f87c147-c17e-4e95-8a14-fd4fad233312" ]; then
+            curl -X POST "http://YOUR_NGROK_BACKEND_URL/instance/0f87c147-c17e-4e95-8a14-fd4fad233312/report?ip_address=$NGROK_URL"
+          fi
+          
           echo "------------------------------------------"
-          echo "SUCCESS: RDP is ready at $URL"
+          echo "SUCCESS: Connect to $NGROK_URL"
           echo "------------------------------------------"
       - name: Keep Alive
         run: sleep 21600
