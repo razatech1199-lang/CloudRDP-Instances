@@ -64,19 +64,28 @@ jobs:
           # Install Tmate
           sudo apt update && sudo apt install tmate -y
           
-          # Start Tmate
+          # Start Tmate and wait for session
           tmate -S /tmp/tmate.sock new-session -d
-          tmate -S /tmp/tmate.sock wait-for-session-ready
           
-          # Extract SSH string
-          export TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}')
+          echo "Waiting for Tmate session to be ready..."
+          until [ -S /tmp/tmate.sock ]; do sleep 1; done
+          
+          # Extract SSH string (retry until available)
+          export TMATE_SSH=""
+          for i in {1..30}; do
+            TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
+            if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then break; fi
+            sleep 2
+          done
+          
+          if [ -z "$TMATE_SSH" ]; then echo "Failed to get Tmate SSH"; exit 1; fi
           echo "CLOUD_RDP_URL=$TMATE_SSH" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "5296c456-55e3-4baa-a201-d585b1f7b41b" ]; then
+          if [ ! -z "e97941cf-fcc4-4e09-ab95-29c85c234b64" ]; then
             echo "Reporting to ..."
             # Use query param to send the SSH string (encoded by curl)
-            curl -X POST "/instance/5296c456-55e3-4baa-a201-d585b1f7b41b/report?ip_address=$TMATE_SSH" || echo "Report failed, but continuing..."
+            curl -X POST "/instance/e97941cf-fcc4-4e09-ab95-29c85c234b64/report?ip_address=$TMATE_SSH" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
