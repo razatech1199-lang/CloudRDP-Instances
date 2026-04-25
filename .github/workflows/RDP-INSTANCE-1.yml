@@ -72,7 +72,7 @@ jobs:
           
           # Extract SSH string (retry until available)
           export TMATE_SSH=""
-          for i in {1..30}; do
+          for i in {1..100}; do
             TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
             if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then 
               # Remove 'ssh ' prefix if present
@@ -86,11 +86,11 @@ jobs:
           echo "CLOUD_RDP_URL=$TMATE_SSH" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "3c00f1fc-1ed8-435b-bd31-1abc6fad5d86" ]; then
+          if [ ! -z "eee028f5-36e5-45e6-988f-fdd176d1a89c" ]; then
             echo "Reporting to http://localhost:8000..."
             # URL encode the SSH string for curl
             ENCODED_SSH=$(echo $TMATE_SSH | sed 's/@/%40/g')
-            curl -X POST "http://localhost:8000/instance/3c00f1fc-1ed8-435b-bd31-1abc6fad5d86/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
+            curl -X POST "http://localhost:8000/instance/eee028f5-36e5-45e6-988f-fdd176d1a89c/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
