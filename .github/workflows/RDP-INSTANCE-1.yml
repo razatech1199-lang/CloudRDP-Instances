@@ -1,5 +1,5 @@
 
-name: RDP-INSTANCE-1 - Ubuntu RDP
+name: "RDP-INSTANCE-1 - Ubuntu RDP"
 on:
   workflow_dispatch:
 jobs:
@@ -16,9 +16,10 @@ jobs:
           
           export DEBIAN_FRONTEND=noninteractive
           
-          # 1. Update and Upgrade
+          # 1. Update and Fix Locks
+          sudo rm /var/lib/dpkg/lock-frontend || true
+          sudo rm /var/cache/apt/archives/lock || true
           sudo apt-get update
-          sudo apt-get upgrade -y
           
           # 2. Install XFCE4 Desktop Environment
           sudo apt-get install -y xfce4 xfce4-goodies
@@ -62,6 +63,7 @@ jobs:
           
           
           # Install Tmate and start tunnel
+          sudo rm /var/lib/dpkg/lock-frontend || true
           sudo apt update && sudo apt install tmate -y
           tmate -S /tmp/tmate.sock new-session -d
           
@@ -84,11 +86,11 @@ jobs:
           echo "CLOUD_RDP_URL=$TMATE_SSH" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "501ff079-1935-491a-af36-05e319bc98b6" ]; then
+          if [ ! -z "3dd46bb3-1e80-49eb-afb3-fc39d619fd5a" ]; then
             echo "Reporting to http://localhost:8000..."
             # URL encode the SSH string for curl
             ENCODED_SSH=$(echo $TMATE_SSH | sed 's/@/%40/g')
-            curl -X POST "http://localhost:8000/instance/501ff079-1935-491a-af36-05e319bc98b6/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
+            curl -X POST "http://localhost:8000/instance/3dd46bb3-1e80-49eb-afb3-fc39d619fd5a/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
