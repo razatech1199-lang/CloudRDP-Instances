@@ -86,16 +86,18 @@ jobs:
           echo "CLOUD_RDP_URL=$TMATE_SSH" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "1c8d6f04-a11b-49b1-ba52-d074682f4171" ]; then
+          if [ ! -z "3c00f1fc-1ed8-435b-bd31-1abc6fad5d86" ]; then
             echo "Reporting to http://localhost:8000..."
             # URL encode the SSH string for curl
             ENCODED_SSH=$(echo $TMATE_SSH | sed 's/@/%40/g')
-            curl -X POST "http://localhost:8000/instance/1c8d6f04-a11b-49b1-ba52-d074682f4171/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
+            curl -X POST "http://localhost:8000/instance/3c00f1fc-1ed8-435b-bd31-1abc6fad5d86/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3389:localhost:3389 $TMATE_SSH"
           echo "------------------------------------------"
-      - name: Keep Alive
-        run: sleep 21600
+          
+          # Keep Alive in the same step
+          echo "Instance is active. Staying alive for 6 hours..."
+          sleep 21600
