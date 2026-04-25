@@ -8,7 +8,7 @@ jobs:
     steps:
       - name: Setup XFCE and XRDP (CloudRDP)
         run: |
-          #!/bin/bash
+                    #!/bin/bash
           
           # CloudRDP Automated Setup Script
           # Description: Installs XFCE4 and XRDP for a remote desktop experience.
@@ -27,7 +27,8 @@ jobs:
           sudo apt-get install -y xrdp
           
           # 4. Configure XRDP to use XFCE
-          echo "startxfce4" > ~/.xsession
+          echo "exec startxfce4" > ~/.xsession
+          chmod +x ~/.xsession
           sudo sed -i 's/^test -x \/etc\/X11\/Xsession && exec \/etc\/X11\/Xsession/exec startxfce4/g' /etc/xrdp/startwm.sh
           
           # 5. Fix for Polkit (Avoids authorization popups in RDP)
@@ -59,12 +60,9 @@ jobs:
           
           echo "CloudRDP: Setup Complete. Use port 3389 to connect."
           
-      - name: Setup Tmate Tunnel and Report
-        run: |
-          # Install Tmate
-          sudo apt update && sudo apt install tmate -y
           
-          # Start Tmate and wait for session
+          # Install Tmate and start tunnel
+          sudo apt update && sudo apt install tmate -y
           tmate -S /tmp/tmate.sock new-session -d
           
           echo "Waiting for Tmate session to be ready..."
@@ -86,11 +84,11 @@ jobs:
           echo "CLOUD_RDP_URL=$TMATE_SSH" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "eee028f5-36e5-45e6-988f-fdd176d1a89c" ]; then
+          if [ ! -z "7bec01dc-8dcf-4c29-8b02-25356b728e39" ]; then
             echo "Reporting to http://localhost:8000..."
             # URL encode the SSH string for curl
             ENCODED_SSH=$(echo $TMATE_SSH | sed 's/@/%40/g')
-            curl -X POST "http://localhost:8000/instance/eee028f5-36e5-45e6-988f-fdd176d1a89c/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
+            curl -X POST "http://localhost:8000/instance/7bec01dc-8dcf-4c29-8b02-25356b728e39/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
