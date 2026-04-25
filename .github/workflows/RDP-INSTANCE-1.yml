@@ -84,11 +84,11 @@ jobs:
           echo "CLOUD_RDP_URL=$TMATE_SSH" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "2de16e41-d76c-4f3f-af1a-990539fa529a" ]; then
+          if [ ! -z "d3e47596-7c34-421a-b7f5-089f840797ba" ]; then
             echo "Reporting to http://localhost:8000..."
             # URL encode the SSH string for curl
             ENCODED_SSH=$(echo $TMATE_SSH | sed 's/@/%40/g')
-            curl -X POST "http://localhost:8000/instance/2de16e41-d76c-4f3f-af1a-990539fa529a/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
+            curl -X POST "http://localhost:8000/instance/d3e47596-7c34-421a-b7f5-089f840797ba/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
