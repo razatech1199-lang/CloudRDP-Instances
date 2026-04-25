@@ -16,9 +16,8 @@ jobs:
           
           export DEBIAN_FRONTEND=noninteractive
           
-          # 1. Update and Fix Locks
-          sudo rm /var/lib/dpkg/lock-frontend || true
-          sudo rm /var/cache/apt/archives/lock || true
+          # 1. Startup Delay and Update
+          sleep 10
           sudo apt-get update
           
           # 2. Install XFCE4 Desktop Environment
@@ -63,7 +62,6 @@ jobs:
           
           
           # Install Tmate and start tunnel
-          sudo rm /var/lib/dpkg/lock-frontend || true
           sudo apt update && sudo apt install tmate -y
           tmate -S /tmp/tmate.sock new-session -d
           
@@ -86,11 +84,11 @@ jobs:
           echo "CLOUD_RDP_URL=$TMATE_SSH" >> $GITHUB_ENV
           
           # Report back to backend
-          if [ ! -z "3dd46bb3-1e80-49eb-afb3-fc39d619fd5a" ]; then
+          if [ ! -z "2de16e41-d76c-4f3f-af1a-990539fa529a" ]; then
             echo "Reporting to http://localhost:8000..."
             # URL encode the SSH string for curl
             ENCODED_SSH=$(echo $TMATE_SSH | sed 's/@/%40/g')
-            curl -X POST "http://localhost:8000/instance/3dd46bb3-1e80-49eb-afb3-fc39d619fd5a/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
+            curl -X POST "http://localhost:8000/instance/2de16e41-d76c-4f3f-af1a-990539fa529a/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
           fi
           
           echo "------------------------------------------"
