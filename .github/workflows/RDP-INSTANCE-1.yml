@@ -1,14 +1,13 @@
-
-name: "RDP-INSTANCE-1 - Ubuntu RDP"
+name: "CloudRDP - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
   rdp-instance:
     runs-on: ubuntu-latest
     steps:
-      - name: Setup XFCE and XRDP (CloudRDP)
+      - name: Setup XFCE and XRDP
         run: |
-                    #!/bin/bash
+          #!/bin/bash
           
           # CloudRDP Automated Setup Script
           # Description: Installs XFCE4 and XRDP for a remote desktop experience.
@@ -61,19 +60,15 @@ jobs:
           echo "CloudRDP: Setup Complete. Use port 3389 to connect."
           
           
-          # Install Tmate and start tunnel
+          # Setup Tmate Tunnel
           sudo apt update && sudo apt install tmate -y
           tmate -S /tmp/tmate.sock new-session -d
-          
-          echo "Waiting for Tmate session to be ready..."
           until [ -S /tmp/tmate.sock ]; do sleep 1; done
           
-          # Extract SSH string (retry until available)
           export TMATE_SSH=""
           for i in {1..100}; do
             TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
             if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then 
-              # Remove 'ssh ' prefix if present
               TMATE_SSH=$(echo $TMATE_SSH | sed 's/^ssh //')
               break
             fi
@@ -81,21 +76,12 @@ jobs:
           done
           
           if [ -z "$TMATE_SSH" ]; then echo "Failed to get Tmate SSH"; exit 1; fi
-          echo "CLOUD_RDP_URL=$TMATE_SSH" >> $GITHUB_ENV
-          
-          # Report back to backend
-          if [ ! -z "d3e47596-7c34-421a-b7f5-089f840797ba" ]; then
-            echo "Reporting to http://localhost:8000..."
-            # URL encode the SSH string for curl
-            ENCODED_SSH=$(echo $TMATE_SSH | sed 's/@/%40/g')
-            curl -X POST "http://localhost:8000/instance/d3e47596-7c34-421a-b7f5-089f840797ba/report?ip_address=$ENCODED_SSH" || echo "Report failed, but continuing..."
-          fi
           
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
-          echo "COMMAND: ssh -L 3389:localhost:3389 $TMATE_SSH"
+          echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
           echo "------------------------------------------"
           
-          # Keep Alive in the same step
-          echo "Instance is active. Staying alive for 6 hours..."
+          # Keep Alive
+          echo "Instance active. Staying alive..."
           sleep 21600
