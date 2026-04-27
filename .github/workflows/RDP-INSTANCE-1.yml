@@ -44,7 +44,15 @@ jobs:
           # 6. Set XRDP User Permissions
           sudo adduser xrdp ssl-cert
           
-          # 7. Restart XRDP Service
+          # 7. Fix console session conflict (sesman.ini)
+          sudo bash -c 'cat >> /etc/xrdp/sesman.ini <<EOF
+          
+          [Reconnect]
+          ReconnectScript=
+          EOF'
+          sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
+          
+          # 8. Restart XRDP Service
           sudo service xrdp restart
           sleep 5
           sudo netstat -tuln | grep 3389 || echo "XRDP NOT LISTENING!"
@@ -79,12 +87,12 @@ jobs:
           
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
-          echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
+          echo "COMMAND: ssh -L 3389:localhost:3389 $TMATE_SSH"
           echo "REPORTING TO: http://localhost:8000"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator (JSON body to handle special chars in SSH string)
-          curl -s -X POST "http://localhost:8000/instance/eb4af20a-1e1d-40b3-8b9f-aaded2bd02d9/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
+          curl -s -X POST "http://localhost:8000/instance/c1363aef-aaab-4083-95ce-8fb0baa65e82/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
           # Keep Alive
           echo "Instance active. Staying alive..."
