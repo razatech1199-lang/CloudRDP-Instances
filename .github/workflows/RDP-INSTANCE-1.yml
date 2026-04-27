@@ -80,7 +80,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
+          echo "REPORTING TO: http://localhost:8000"
           echo "------------------------------------------"
+          
+          # Report back to Fleet Automator (JSON body to handle special chars in SSH string)
+          curl -s -X POST "http://localhost:8000/instance/eb4af20a-1e1d-40b3-8b9f-aaded2bd02d9/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
           # Keep Alive
           echo "Instance active. Staying alive..."
