@@ -20,7 +20,7 @@ jobs:
           sudo apt-get update
           
           # 2. Install XFCE4 Desktop Environment
-          sudo apt-get install -y xfce4 xfce4-goodies
+          sudo apt-get install -y xfce4 xfce4-goodies dbus-x11
           
           # 3. Install XRDP
           sudo apt-get install -y xrdp
@@ -49,6 +49,8 @@ jobs:
           sudo bash -c 'echo "[Reconnect]" >> /etc/xrdp/sesman.ini'
           sudo bash -c 'echo "ReconnectScript=" >> /etc/xrdp/sesman.ini'
           sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
           
           # 8. Restart XRDP Service
           sudo service xrdp restart
@@ -90,7 +92,7 @@ jobs:
           echo "------------------------------------------"
           
           # Report back to Fleet Automator (JSON body to handle special chars in SSH string)
-          curl -s -X POST "http://localhost:8000/instance/b6bc4ee3-844d-4a45-a9f8-1da959dca372/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
+          curl -s -X POST "http://localhost:8000/instance/5bc41c1a-ae99-4041-98d7-ebf4ea66619f/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
           # Keep Alive
           echo "Instance active. Staying alive..."
