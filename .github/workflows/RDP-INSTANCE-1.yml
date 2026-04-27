@@ -23,11 +23,16 @@ jobs:
           sudo apt-get install -y xfce4 xfce4-goodies dbus-x11
           
           # 3. Install XRDP
-          sudo apt-get install -y xrdp
+          sudo apt-get install -y xrdp xorgxrdp
           
           # 4. Configure XRDP to use XFCE
           echo "exec startxfce4" > ~/.xsession
           chmod +x ~/.xsession
+          sudo bash -c 'echo "export XDG_SESSION_DESKTOP=xfce" > /etc/xrdp/xsessionrc'
+          sudo bash -c 'echo "export XDG_CURRENT_DESKTOP=XFCE" >> /etc/xrdp/xsessionrc'
+          sudo bash -c 'echo "exec startxfce4" >> /etc/xrdp/xsessionrc'
+          sudo chmod +x /etc/xrdp/xsessionrc
+          sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
           sudo sed -i 's/^test -x \/etc\/X11\/Xsession && exec \/etc\/X11\/Xsession/exec startxfce4/g' /etc/xrdp/startwm.sh
           
           # 5. Fix for Polkit (Avoids authorization popups in RDP)
@@ -56,6 +61,10 @@ jobs:
           sudo service xrdp restart
           sleep 5
           sudo netstat -tuln | grep 3389 || echo "XRDP NOT LISTENING!"
+          echo "--- XRDP STATUS ---"
+          sudo systemctl status xrdp --no-pager || true
+          echo "--- XRDP LOG ---"
+          sudo cat /var/log/xrdp.log || true
           
           # 8. Firewall Configuration (UFW - Optional but safe)
           sudo ufw allow 3389/tcp || true
@@ -92,7 +101,7 @@ jobs:
           echo "------------------------------------------"
           
           # Report back to Fleet Automator (JSON body to handle special chars in SSH string)
-          curl -s -X POST "http://localhost:8000/instance/5bc41c1a-ae99-4041-98d7-ebf4ea66619f/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
+          curl -s -X POST "http://localhost:8000/instance/15bb37be-b4c6-4f80-8260-a3b291cf7ee9/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
           # Keep Alive
           echo "Instance active. Staying alive..."
