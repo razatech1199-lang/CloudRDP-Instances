@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 jobs:
   rdp-instance:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Setup XFCE and XRDP
         run: |
@@ -32,24 +32,22 @@ jobs:
           
           # 5. Fix for Polkit (Avoids authorization popups in RDP)
           sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
-          sudo bash -c 'cat > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla <<EOF
-          [Allow Colord all Users]
-          Identity=unix-user:*
-          Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
-          ResultAny=no
-          ResultInactive=no
-          ResultActive=yes
-          EOF'
+          sudo bash -c 'echo "[Allow Colord all Users]" > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
+          sudo bash -c 'echo "Identity=unix-user:*" >> /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
+          sudo bash -c 'echo "Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile" >> /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
+          sudo bash -c 'echo "ResultAny=no" >> /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
+          sudo bash -c 'echo "ResultInactive=no" >> /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
+          sudo bash -c 'echo "ResultActive=yes" >> /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
           
-          # 6. Set XRDP User Permissions
+          # 6. Set XRDP User Permissions and SSL
+          sudo apt-get install -y ssl-cert
+          sudo make-ssl-cert generate-default-snakeoil --force-overwrite
           sudo adduser xrdp ssl-cert
           
           # 7. Fix console session conflict (sesman.ini)
-          sudo bash -c 'cat >> /etc/xrdp/sesman.ini <<EOF
-          
-          [Reconnect]
-          ReconnectScript=
-          EOF'
+          sudo bash -c 'echo "" >> /etc/xrdp/sesman.ini'
+          sudo bash -c 'echo "[Reconnect]" >> /etc/xrdp/sesman.ini'
+          sudo bash -c 'echo "ReconnectScript=" >> /etc/xrdp/sesman.ini'
           sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
           
           # 8. Restart XRDP Service
@@ -87,12 +85,12 @@ jobs:
           
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
-          echo "COMMAND: ssh -L 3389:localhost:3389 $TMATE_SSH"
+          echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
           echo "REPORTING TO: http://localhost:8000"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator (JSON body to handle special chars in SSH string)
-          curl -s -X POST "http://localhost:8000/instance/ce3e2dae-edf9-445c-b8d5-219b5aa0fd6b/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
+          curl -s -X POST "http://localhost:8000/instance/b6bc4ee3-844d-4a45-a9f8-1da959dca372/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
           # Keep Alive
           echo "Instance active. Staying alive..."
