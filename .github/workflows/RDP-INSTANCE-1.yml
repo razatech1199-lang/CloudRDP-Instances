@@ -1,12 +1,16 @@
-name: "CloudRDP - Ubuntu Instance"
+name: "CloudRDP [10:17:36] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
   rdp-instance:
     runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Setup XFCE and XRDP
         run: |
+          set -x
           #!/bin/bash
           
           # CloudRDP Automated Setup Script
@@ -77,22 +81,29 @@ jobs:
           echo "CloudRDP: Setup Complete. Use port 3389 to connect."
           
           
-          # Setup Tmate Tunnel
-          sudo apt update && sudo apt install tmate -y
+          echo "--- Starting Tmate Setup ---"
+          sudo apt-get update -qy
+          sudo apt-get install -y tmate
+          
+          echo "--- Launching Tmate ---"
           tmate -S /tmp/tmate.sock new-session -d
           until [ -S /tmp/tmate.sock ]; do sleep 1; done
           
           export TMATE_SSH=""
-          for i in {1..100}; do
+          for i in {1..30}; do
             TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
             if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then 
               TMATE_SSH=$(echo $TMATE_SSH | sed 's/^ssh //')
               break
             fi
+            echo "Waiting for Tmate SSH (attempt $i/30)..."
             sleep 2
           done
           
-          if [ -z "$TMATE_SSH" ]; then echo "Failed to get Tmate SSH"; exit 1; fi
+          if [ -z "$TMATE_SSH" ]; then 
+            echo "::error::Failed to get Tmate SSH after 60 seconds"
+            exit 1
+          fi
           
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
@@ -100,9 +111,11 @@ jobs:
           echo "REPORTING TO: http://localhost:8000"
           echo "------------------------------------------"
           
-          # Report back to Fleet Automator (JSON body to handle special chars in SSH string)
-          curl -s -X POST "http://localhost:8000/instance/5d1a3b06-1082-4172-affb-2107dfafb38a/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
+          # Report back to Fleet Automator
+          REPORT_URL="http://localhost:8000/instance/da9b1386-6256-4552-8f90-de5c693c4a8d/report"
+          echo "Reporting to $REPORT_URL..."
+          curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
           # Keep Alive
-          echo "Instance active. Staying alive..."
+          echo "Instance active. Staying alive for 6 hours..."
           sleep 21600
