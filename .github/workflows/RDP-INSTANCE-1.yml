@@ -101,7 +101,7 @@ jobs:
           echo "------------------------------------------"
           
           # Report back to Fleet Automator (JSON body to handle special chars in SSH string)
-          curl -s -X POST "http://localhost:8000/instance/3a03df96-e18c-485b-aee7-d1c92381f6b9/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
+          curl -s -X POST "http://localhost:8000/instance/5d1a3b06-1082-4172-affb-2107dfafb38a/report"             -H "Content-Type: application/json"             -d "{"ip_address": "$TMATE_SSH"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
           # Keep Alive
           echo "Instance active. Staying alive..."
