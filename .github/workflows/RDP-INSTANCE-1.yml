@@ -1,4 +1,4 @@
-name: "CloudRDP [15:09:32] - Ubuntu Instance"
+name: "CloudRDP [09:16:50] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -19,66 +19,71 @@ jobs:
           
           export DEBIAN_FRONTEND=noninteractive
           
-          # 1. Startup Delay and Update
-          sleep 10
-          sudo apt-get update
+          echo "--- [1/6] Initializing System ---"
+          sudo apt-get update -qy
+          sudo apt-get install -y software-properties-common
           
-          # 2. Install XFCE4 Desktop Environment
+          echo "--- [2/6] Installing Desktop Environment (XFCE4) ---"
           sudo apt-get install -y xfce4 xfce4-goodies dbus-x11
           
-          # 3. Install XRDP
+          echo "--- [3/6] Installing and Configuring XRDP ---"
           sudo apt-get install -y xrdp xorgxrdp
           
-          # 4. Configure XRDP to use XFCE
+          # Configure XRDP to use XFCE
           echo "exec startxfce4" > ~/.xsession
           chmod +x ~/.xsession
-          sudo bash -c 'echo "export XDG_SESSION_DESKTOP=xfce" > /etc/xrdp/xsessionrc'
-          sudo bash -c 'echo "export XDG_CURRENT_DESKTOP=XFCE" >> /etc/xrdp/xsessionrc'
-          sudo bash -c 'echo "exec startxfce4" >> /etc/xrdp/xsessionrc'
-          sudo chmod +x /etc/xrdp/xsessionrc
+          
+          # Force XFCE even if Gnome is present (System-wide)
+          sudo tee /etc/xrdp/startwm.sh <<EOF
+          #!/bin/sh
+          if [ -r /etc/default/locale ]; then
+            . /etc/default/locale
+            export LANG
+          fi
+          
+          unset DBUS_SESSION_BUS_ADDRESS
+          unset XDG_RUNTIME_DIR
+          exec startxfce4
+          EOF
+          sudo chmod +x /etc/xrdp/startwm.sh
+          
+          # Allow any user to start X server
           sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
-          sudo sed -i 's/^test -x \/etc\/X11\/Xsession && exec \/etc\/X11\/Xsession/exec startxfce4/g' /etc/xrdp/startwm.sh
           
-          # 5. Fix for Polkit (Avoids authorization popups in RDP)
+          echo "--- [4/6] Optimizing Security & Performance ---"
+          # Fix for Polkit (Avoids authorization popups in RDP)
           sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
-          sudo bash -c 'echo "[Allow Colord all Users]" > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
-          sudo bash -c 'echo "Identity=unix-user:*" >> /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
-          sudo bash -c 'echo "Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile" >> /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
-          sudo bash -c 'echo "ResultAny=no" >> /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
-          sudo bash -c 'echo "ResultInactive=no" >> /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
-          sudo bash -c 'echo "ResultActive=yes" >> /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla'
+          sudo bash -c 'cat <<EOF > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla
+          [Allow Colord all Users]
+          Identity=unix-user:*
+          Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
+          ResultAny=no
+          ResultInactive=no
+          ResultActive=yes
+          EOF'
           
-          # 6. Set XRDP User Permissions and SSL
+          # Set XRDP User Permissions and SSL
           sudo apt-get install -y ssl-cert
-          sudo make-ssl-cert generate-default-snakeoil --force-overwrite
           sudo adduser xrdp ssl-cert
           
-          # 7. Fix console session conflict (sesman.ini)
-          sudo bash -c 'echo "" >> /etc/xrdp/sesman.ini'
-          sudo bash -c 'echo "[Reconnect]" >> /etc/xrdp/sesman.ini'
-          sudo bash -c 'echo "ReconnectScript=" >> /etc/xrdp/sesman.ini'
+          # Force Standard RDP Security (Fixes "Hanging" on connection)
           sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^bitmap_cache=.*/bitmap_cache=yes/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^bitmap_compression=.*/bitmap_compression=yes/' /etc/xrdp/xrdp.ini
           
-          # 8. Restart XRDP Service
+          echo "--- [5/6] Finalizing Services ---"
           sudo service xrdp restart
-          sleep 5
-          sudo netstat -tuln | grep 3389 || echo "XRDP NOT LISTENING!"
-          echo "--- XRDP STATUS ---"
-          sudo systemctl status xrdp --no-pager || true
-          echo "--- XRDP LOG ---"
-          sudo cat /var/log/xrdp.log || true
+          sudo ufw allow 3389/tcp 2>/dev/null || true
           
-          # 8. Firewall Configuration (UFW - Optional but safe)
-          sudo ufw allow 3389/tcp || true
-          
-          # 9. Set Password for RDP Login
-          # GitHub Actions default user is 'runner'
+          echo "--- [6/6] Setting Credentials ---"
+          # Default credentials for the session
           echo "runner:CloudRDP2026!" | sudo chpasswd
           echo "root:CloudRDP2026!" | sudo chpasswd
           
-          echo "CloudRDP: Setup Complete. Use port 3389 to connect."
+          echo "CloudRDP: Setup Complete. Listening on 3389."
+          
           
           
           echo "--- Starting Tmate Setup ---"
@@ -112,7 +117,7 @@ jobs:
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="http://localhost:8000/instance/b95a09f8-50c7-42a9-a0a1-aff5ae1bf563/report"
+          REPORT_URL="http://localhost:8000/instance/581f180e-534b-4b00-b66e-d096a1bae0ee/report"
           echo "Reporting to $REPORT_URL..."
           curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
