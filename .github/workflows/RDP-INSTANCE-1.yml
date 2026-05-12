@@ -1,4 +1,4 @@
-name: "CloudRDP [10:09:38] - Ubuntu Instance"
+name: "CloudRDP [10:57:29] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -117,7 +117,7 @@ jobs:
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://clean-cows-ask.loca.lt/instance/89734e43-4f27-4d88-852f-f833a2153009/report"
+          REPORT_URL="https://clean-cows-ask.loca.lt/instance/44b7410d-44d7-42eb-9e4a-d365e1380064/report"
           echo "Reporting to $REPORT_URL..."
           curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
