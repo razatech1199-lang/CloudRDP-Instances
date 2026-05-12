@@ -1,4 +1,4 @@
-name: "CloudRDP [15:27:14] - Ubuntu Instance"
+name: "CloudRDP [15:51:40] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -113,11 +113,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://computing-tightrope-egomaniac.ngrok-free.dev"
+          echo "REPORTING TO: https://chatty-apples-speak.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://computing-tightrope-egomaniac.ngrok-free.dev/instance/9a61053c-3a72-4a00-b106-c3c9ee4861fe/report"
+          REPORT_URL="https://chatty-apples-speak.loca.lt/instance/0aa7bf4d-e089-44e6-8734-a9cf72b334e5/report"
           echo "Reporting to $REPORT_URL..."
           curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -H "Bypass-Tunnel-Reminder: true"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
