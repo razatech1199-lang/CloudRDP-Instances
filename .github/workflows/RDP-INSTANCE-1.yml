@@ -1,4 +1,4 @@
-name: "CloudRDP [14:53:02] - Ubuntu Instance"
+name: "CloudRDP [15:08:00] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -117,9 +117,9 @@ jobs:
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://fuzzy-plums-jump.loca.lt/instance/3bf430dd-4694-456d-9940-a4fbc684c351/report"
+          REPORT_URL="https://fuzzy-plums-jump.loca.lt/instance/b019159a-b831-4722-85c3-15618d77e395/report"
           echo "Reporting to $REPORT_URL..."
-          curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
+          curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -H "Bypass-Tunnel-Reminder: true"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
           # Keep Alive
           echo "Instance active. Staying alive for 6 hours..."
