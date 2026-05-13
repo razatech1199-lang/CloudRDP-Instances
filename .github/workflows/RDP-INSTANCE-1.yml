@@ -1,4 +1,4 @@
-name: "CloudRDP [09:02:46] - Ubuntu Instance"
+name: "CloudRDP [09:09:27] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -95,22 +95,26 @@ jobs:
           sudo apt-get install -y tmate
           
           echo "--- Launching Tmate ---"
+          rm -f /tmp/tmate.sock
           tmate -S /tmp/tmate.sock new-session -d
           until [ -S /tmp/tmate.sock ]; do sleep 1; done
           
           export TMATE_SSH=""
-          for i in {1..30}; do
+          echo "Waiting for Tmate.io connection string..."
+          for i in {1..60}; do
             TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
             if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then 
               TMATE_SSH=$(echo $TMATE_SSH | sed 's/^ssh //')
+              echo "✅ Found: $TMATE_SSH"
               break
             fi
-            echo "Waiting for Tmate SSH (attempt $i/30)..."
+            echo "Waiting for Tmate SSH (attempt $i/60)..."
             sleep 2
           done
           
           if [ -z "$TMATE_SSH" ]; then 
-            echo "::error::Failed to get Tmate SSH after 60 seconds"
+            echo "::error::Failed to get Tmate SSH after 120 seconds"
+            tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' || echo "Cannot display"
             exit 1
           fi
           
@@ -121,7 +125,7 @@ jobs:
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://chatty-apples-speak.loca.lt/instance/0df5296c-c711-4f07-afc2-8eac22b2d5cb/report"
+          REPORT_URL="https://chatty-apples-speak.loca.lt/instance/422c985e-e711-4669-a040-0b2cad621e6e/report"
           echo "Reporting to $REPORT_URL..."
           curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -H "Bypass-Tunnel-Reminder: true"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
