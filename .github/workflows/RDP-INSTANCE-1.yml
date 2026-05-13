@@ -1,4 +1,4 @@
-name: "CloudRDP [16:00:44] - Ubuntu Instance"
+name: "CloudRDP [09:02:46] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -78,8 +78,12 @@ jobs:
           sudo ufw allow 3389/tcp 2>/dev/null || true
           
           echo "--- [6/6] Setting Credentials ---"
-          # Default credentials for the session
-          echo "runner:CloudRDP2026!" | sudo chpasswd
+          # Set password for the current user (ubuntu, azureuser, runner, etc.)
+          CURRENT_USER=$(whoami)
+          echo "Setting password for user: $CURRENT_USER"
+          echo "$CURRENT_USER:CloudRDP2026!" | sudo chpasswd
+          
+          # Also set root password just in case
           echo "root:CloudRDP2026!" | sudo chpasswd
           
           echo "CloudRDP: Setup Complete. Listening on 3389."
@@ -117,7 +121,7 @@ jobs:
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://chatty-apples-speak.loca.lt/instance/e5f7e761-d207-4184-8b19-f15db744fee2/report"
+          REPORT_URL="https://chatty-apples-speak.loca.lt/instance/0df5296c-c711-4f07-afc2-8eac22b2d5cb/report"
           echo "Reporting to $REPORT_URL..."
           curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -H "Bypass-Tunnel-Reminder: true"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
