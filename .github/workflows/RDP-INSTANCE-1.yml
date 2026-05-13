@@ -1,4 +1,4 @@
-name: "CloudRDP [15:40:24] - Ubuntu Instance"
+name: "CloudRDP [15:46:24] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -13,102 +13,51 @@ jobs:
           set -x
           #!/bin/bash
           
-          # CloudRDP Automated Setup Script
-          # Description: Installs XFCE4 and XRDP for a remote desktop experience.
-          # Compatibility: Ubuntu 20.04+, Debian 11+
-          
+          # CloudRDP Optimized Setup Script (High-Speed Deployment)
           export DEBIAN_FRONTEND=noninteractive
           
-          echo "--- [1/6] Initializing & Installing Desktop (Minimal) ---"
+          echo "--- [1/3] Installing Minimal Desktop & XRDP ---"
+          # Combine all essential packages into one call to save time
           sudo apt-get update -qy
           sudo apt-get install -y --no-install-recommends \
-              xfce4 \
-              dbus-x11 \
-              xrdp \
-              xorgxrdp
+              xfce4-session xfwm4 xfce4-panel xfce4-settings xfce4-terminal \
+              dbus-x11 xrdp xorgxrdp tmate
           
-          # Configure XRDP to use XFCE (Targeting the actual user)
+          # Configure XRDP to use XFCE
           USER_HOME=$(eval echo "~$(whoami)")
-          echo "exec startxfce4" | sudo tee $USER_HOME/.xsession
-          echo "exec startxfce4" | sudo tee $USER_HOME/.xsessionrc
-          sudo chown $(whoami):$(whoami) $USER_HOME/.xsession $USER_HOME/.xsessionrc
-          sudo chmod +x $USER_HOME/.xsession $USER_HOME/.xsessionrc
+          echo "exec startxfce4" > $USER_HOME/.xsession
+          chmod +x $USER_HOME/.xsession
           
-          # Force XFCE even if Gnome is present (System-wide)
-          sudo tee /etc/xrdp/startwm.sh <<EOF
-          #!/bin/sh
-          if [ -r /etc/default/locale ]; then
-            . /etc/default/locale
-            export LANG
-          fi
-          
-          unset DBUS_SESSION_BUS_ADDRESS
-          unset XDG_RUNTIME_DIR
-          exec startxfce4
-          EOF
-          sudo chmod +x /etc/xrdp/startwm.sh
-          
-          # Allow any user to start X server
-          sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
-          
-          echo "--- [4/6] Optimizing Security & Performance ---"
-          # Fix for Polkit (Avoids authorization popups in RDP)
-          sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
-          sudo bash -c 'cat <<EOF > /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla
-          [Allow Colord all Users]
-          Identity=unix-user:*
-          Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
-          ResultAny=no
-          ResultInactive=no
-          ResultActive=yes
-          EOF'
-          
-          # Prevent "System Refresh" popups
-          sudo bash -c 'cat <<EOF > /etc/polkit-1/localauthority/50-local.d/10-network-manager.pkla
-          [Allow Network Manager]
-          Identity=unix-user:*
-          Action=org.freedesktop.NetworkManager.*;org.freedesktop.packagekit.*;org.freedesktop.udisks2.*
-          ResultAny=yes
-          ResultInactive=no
-          ResultActive=yes
-          EOF'
-          
-          echo "--- [4/6] Optimizing Security & Performance ---"
-          # Add xrdp to ssl-cert group if it exists
-          sudo adduser xrdp ssl-cert 2>/dev/null || true
-          
-          # Fix for Polkit (Avoids authorization popups in RDP)
-          sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
+          # Optimize XRDP configuration for performance
+          sudo sed -i 's/^max_bpp=.*/max_bpp=16/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^bitmap_cache=.*/bitmap_cache=yes/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^bitmap_compression=.*/bitmap_compression=yes/' /etc/xrdp/xrdp.ini
           
-          echo "--- [5/6] Finalizing Services ---"
+          # Fix Polkit to avoid "Authentication Required" popups
+          sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
+          sudo bash -c 'cat <<EOF > /etc/polkit-1/localauthority/50-local.d/45-allow.pkla
+          [Allow All]
+          Identity=unix-user:*
+          Action=org.freedesktop.*;org.debian.*
+          ResultAny=yes
+          ResultInactive=yes
+          ResultActive=yes
+          EOF'
+          
+          echo "--- [2/3] Finalizing Services ---"
           sudo systemctl enable xrdp
           sudo systemctl restart xrdp
-          sudo ufw allow 3389/tcp 2>/dev/null || true
           
-          # Debug info for logs
-          echo "XRDP Status:"
-          sudo systemctl status xrdp --no-pager
-          
-          echo "--- [6/6] Setting Credentials ---"
-          # Set password for the current user (ubuntu, azureuser, runner, etc.)
+          echo "--- [3/3] Setting Credentials ---"
           CURRENT_USER=$(whoami)
-          echo "Setting password for user: $CURRENT_USER"
           echo "$CURRENT_USER:CloudRDP2026!" | sudo chpasswd
-          
-          # Also set root password just in case
           echo "root:CloudRDP2026!" | sudo chpasswd
           
-          echo "CloudRDP: Setup Complete. Listening on 3389."
+          echo "CloudRDP: Setup Complete."
           
           
           
           echo "--- Starting Tmate Setup ---"
-          sudo apt-get update -qy
-          sudo apt-get install -y tmate
           
           # CRITICAL: Tmate often requires a local SSH key to initialize a session properly
           if [ ! -f ~/.ssh/id_rsa ]; then
@@ -159,13 +108,26 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://computing-tightrope-egomaniac.ngrok-free.dev"
+          echo "REPORTING TO: https://salty-grapes-press.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://computing-tightrope-egomaniac.ngrok-free.dev/instance/d338795d-8d26-4835-9a6e-9fc9a631a7be/report"
+          REPORT_URL="https://salty-grapes-press.loca.lt/instance/3745c0ff-8b2d-45d5-8ca7-a2864b590a32/report"
           echo "Reporting to $REPORT_URL..."
-          curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -H "Bypass-Tunnel-Reminder: true"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
+          
+          # Use -f to fail on HTTP errors, and capture output for validation
+          RESPONSE=$(curl -fsSL -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -H "Bypass-Tunnel-Reminder: true"             -d "{\"ip_address\": \"$TMATE_SSH\"}" 2>&1)
+          
+          if [ $? -eq 0 ]; then
+            echo "✅ Reported successfully!"
+          else
+            echo "❌ Report failed!"
+            echo "Error details: $RESPONSE"
+            if [[ "$RESPONSE" == *"offline"* || "$RESPONSE" == *"ERR_NGROK"* ]]; then
+              echo "::error::Your BACKEND_URL is offline. Please check your ngrok tunnel!"
+            fi
+            exit 1
+          fi
           
           # Keep Alive
           echo "Instance active. Staying alive for 6 hours..."
