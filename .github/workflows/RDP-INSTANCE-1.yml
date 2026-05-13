@@ -1,4 +1,4 @@
-name: "CloudRDP [15:46:24] - Ubuntu Instance"
+name: "CloudRDP [16:09:51] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -21,17 +21,25 @@ jobs:
           sudo apt-get update -qy
           sudo apt-get install -y --no-install-recommends \
               xfce4-session xfwm4 xfce4-panel xfce4-settings xfce4-terminal \
-              dbus-x11 xrdp xorgxrdp tmate
+              dbus-x11 xrdp xorgxrdp tmate xinit
           
           # Configure XRDP to use XFCE
           USER_HOME=$(eval echo "~$(whoami)")
           echo "exec startxfce4" > $USER_HOME/.xsession
           chmod +x $USER_HOME/.xsession
           
+          # Fix startwm.sh (Critical for Ubuntu runners)
+          sudo sed -i 's/test -x \/etc\/X11\/Xsession \&\& exec \/etc\/X11\/Xsession/exec startxfce4/g' /etc/xrdp/startwm.sh
+          sudo sed -i 's/exec \/bin\/sh \/etc\/X11\/Xsession/exec startxfce4/g' /etc/xrdp/startwm.sh
+          
+          # Allow any user to start X server
+          sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
+          
           # Optimize XRDP configuration for performance
           sudo sed -i 's/^max_bpp=.*/max_bpp=16/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^bitmap_cache=.*/bitmap_cache=yes/' /etc/xrdp/xrdp.ini
+          sudo adduser xrdp ssl-cert 2>/dev/null || true
           
           # Fix Polkit to avoid "Authentication Required" popups
           sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
@@ -108,11 +116,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://salty-grapes-press.loca.lt"
+          echo "REPORTING TO: https://little-schools-build.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://salty-grapes-press.loca.lt/instance/3745c0ff-8b2d-45d5-8ca7-a2864b590a32/report"
+          REPORT_URL="https://little-schools-build.loca.lt/instance/529cb089-8a2d-4f34-b021-68132018287f/report"
           echo "Reporting to $REPORT_URL..."
           
           # Use -f to fail on HTTP errors, and capture output for validation
