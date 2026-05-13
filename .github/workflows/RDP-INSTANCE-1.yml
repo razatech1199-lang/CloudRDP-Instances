@@ -1,4 +1,4 @@
-name: "CloudRDP [10:15:25] - Ubuntu Instance"
+name: "CloudRDP [10:24:11] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -19,15 +19,13 @@ jobs:
           
           export DEBIAN_FRONTEND=noninteractive
           
-          echo "--- [1/6] Initializing System ---"
+          echo "--- [1/6] Initializing & Installing Desktop (Minimal) ---"
           sudo apt-get update -qy
-          sudo apt-get install -y software-properties-common
-          
-          echo "--- [2/6] Installing Desktop Environment (XFCE4) ---"
-          sudo apt-get install -y xfce4 xfce4-goodies dbus-x11
-          
-          echo "--- [3/6] Installing and Configuring XRDP ---"
-          sudo apt-get install -y xrdp xorgxrdp
+          sudo apt-get install -y --no-install-recommends \
+              xfce4 \
+              dbus-x11 \
+              xrdp \
+              xorgxrdp
           
           # Configure XRDP to use XFCE
           echo "exec startxfce4" > ~/.xsession
@@ -62,11 +60,11 @@ jobs:
           ResultActive=yes
           EOF'
           
-          # Set XRDP User Permissions and SSL
-          sudo apt-get install -y ssl-cert
-          sudo adduser xrdp ssl-cert
+          echo "--- [4/6] Optimizing Security & Performance ---"
+          # Add xrdp to ssl-cert group if it exists
+          sudo adduser xrdp ssl-cert 2>/dev/null || true
           
-          # Force Standard RDP Security (Fixes "Hanging" on connection)
+          # Fix for Polkit (Avoids authorization popups in RDP)
           sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
@@ -147,7 +145,7 @@ jobs:
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://chatty-apples-speak.loca.lt/instance/b49354a5-fe2f-4146-8caf-b5777c42c6ea/report"
+          REPORT_URL="https://chatty-apples-speak.loca.lt/instance/ce45a96b-9d98-4520-8b35-3302d08aa136/report"
           echo "Reporting to $REPORT_URL..."
           curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -H "Bypass-Tunnel-Reminder: true"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
