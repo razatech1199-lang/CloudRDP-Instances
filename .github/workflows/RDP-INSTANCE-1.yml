@@ -1,4 +1,4 @@
-name: "CloudRDP [09:09:27] - Ubuntu Instance"
+name: "CloudRDP [10:00:14] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -94,27 +94,49 @@ jobs:
           sudo apt-get update -qy
           sudo apt-get install -y tmate
           
-          echo "--- Launching Tmate ---"
-          rm -f /tmp/tmate.sock
-          tmate -S /tmp/tmate.sock new-session -d
-          until [ -S /tmp/tmate.sock ]; do sleep 1; done
+          # CRITICAL: Tmate often requires a local SSH key to initialize a session properly
+          if [ ! -f ~/.ssh/id_rsa ]; then
+            echo "Generating local SSH key..."
+            mkdir -p ~/.ssh
+            ssh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
+          fi
           
-          export TMATE_SSH=""
-          echo "Waiting for Tmate.io connection string..."
-          for i in {1..60}; do
-            TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
-            if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then 
-              TMATE_SSH=$(echo $TMATE_SSH | sed 's/^ssh //')
-              echo "✅ Found: $TMATE_SSH"
-              break
+          echo "--- Launching Tmate ---"
+          for retry in {1..3}; do
+            echo "Starting Tmate session (Attempt $retry)..."
+            rm -f /tmp/tmate.sock
+            tmate -S /tmp/tmate.sock new-session -d
+            
+            # Wait for socket
+            for i in {1..10}; do
+              [ -S /tmp/tmate.sock ] && break
+              sleep 1
+            done
+            
+            if [ ! -S /tmp/tmate.sock ]; then
+              echo "Socket failed to create, retrying..."
+              continue
             fi
-            echo "Waiting for Tmate SSH (attempt $i/60)..."
-            sleep 2
+            
+            export TMATE_SSH=""
+            echo "Waiting for Tmate.io connection string..."
+            for i in {1..40}; do
+              TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
+              if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then 
+                TMATE_SSH=$(echo $TMATE_SSH | sed 's/^ssh //')
+                echo "✅ Found: $TMATE_SSH"
+                break 2 # Break both loops
+              fi
+              sleep 2
+            done
+            echo "Session unresponsive, retrying initialization..."
           done
           
           if [ -z "$TMATE_SSH" ]; then 
-            echo "::error::Failed to get Tmate SSH after 120 seconds"
-            tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' || echo "Cannot display"
+            echo "::error::Failed to get Tmate SSH after multiple retries."
+            echo "System info for debug:"
+            tmate -V
+            ps aux | grep tmate
             exit 1
           fi
           
@@ -125,7 +147,7 @@ jobs:
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://chatty-apples-speak.loca.lt/instance/422c985e-e711-4669-a040-0b2cad621e6e/report"
+          REPORT_URL="https://chatty-apples-speak.loca.lt/instance/0e7e9c26-2c25-4908-b178-477ee2c0e043/report"
           echo "Reporting to $REPORT_URL..."
           curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -H "Bypass-Tunnel-Reminder: true"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
