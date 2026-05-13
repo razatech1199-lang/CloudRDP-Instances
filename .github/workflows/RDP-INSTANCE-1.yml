@@ -1,4 +1,4 @@
-name: "CloudRDP [10:24:11] - Ubuntu Instance"
+name: "CloudRDP [15:40:24] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -27,9 +27,12 @@ jobs:
               xrdp \
               xorgxrdp
           
-          # Configure XRDP to use XFCE
-          echo "exec startxfce4" > ~/.xsession
-          chmod +x ~/.xsession
+          # Configure XRDP to use XFCE (Targeting the actual user)
+          USER_HOME=$(eval echo "~$(whoami)")
+          echo "exec startxfce4" | sudo tee $USER_HOME/.xsession
+          echo "exec startxfce4" | sudo tee $USER_HOME/.xsessionrc
+          sudo chown $(whoami):$(whoami) $USER_HOME/.xsession $USER_HOME/.xsessionrc
+          sudo chmod +x $USER_HOME/.xsession $USER_HOME/.xsessionrc
           
           # Force XFCE even if Gnome is present (System-wide)
           sudo tee /etc/xrdp/startwm.sh <<EOF
@@ -60,6 +63,16 @@ jobs:
           ResultActive=yes
           EOF'
           
+          # Prevent "System Refresh" popups
+          sudo bash -c 'cat <<EOF > /etc/polkit-1/localauthority/50-local.d/10-network-manager.pkla
+          [Allow Network Manager]
+          Identity=unix-user:*
+          Action=org.freedesktop.NetworkManager.*;org.freedesktop.packagekit.*;org.freedesktop.udisks2.*
+          ResultAny=yes
+          ResultInactive=no
+          ResultActive=yes
+          EOF'
+          
           echo "--- [4/6] Optimizing Security & Performance ---"
           # Add xrdp to ssl-cert group if it exists
           sudo adduser xrdp ssl-cert 2>/dev/null || true
@@ -72,8 +85,13 @@ jobs:
           sudo sed -i 's/^bitmap_compression=.*/bitmap_compression=yes/' /etc/xrdp/xrdp.ini
           
           echo "--- [5/6] Finalizing Services ---"
-          sudo service xrdp restart
+          sudo systemctl enable xrdp
+          sudo systemctl restart xrdp
           sudo ufw allow 3389/tcp 2>/dev/null || true
+          
+          # Debug info for logs
+          echo "XRDP Status:"
+          sudo systemctl status xrdp --no-pager
           
           echo "--- [6/6] Setting Credentials ---"
           # Set password for the current user (ubuntu, azureuser, runner, etc.)
@@ -141,11 +159,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://chatty-apples-speak.loca.lt"
+          echo "REPORTING TO: https://computing-tightrope-egomaniac.ngrok-free.dev"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://chatty-apples-speak.loca.lt/instance/ce45a96b-9d98-4520-8b35-3302d08aa136/report"
+          REPORT_URL="https://computing-tightrope-egomaniac.ngrok-free.dev/instance/d338795d-8d26-4835-9a6e-9fc9a631a7be/report"
           echo "Reporting to $REPORT_URL..."
           curl -s -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -H "Bypass-Tunnel-Reminder: true"             -d "{\"ip_address\": \"$TMATE_SSH\"}" && echo "Reported successfully!" || echo "Report failed - check BACKEND_URL"
           
