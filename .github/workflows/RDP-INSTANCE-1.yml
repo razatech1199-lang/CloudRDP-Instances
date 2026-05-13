@@ -1,4 +1,4 @@
-name: "CloudRDP [16:09:51] - Ubuntu Instance"
+name: "CloudRDP [16:16:09] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -13,35 +13,48 @@ jobs:
           set -x
           #!/bin/bash
           
-          # CloudRDP Optimized Setup Script (High-Speed Deployment)
+          # CloudRDP Robust Setup Script (Production Version)
           export DEBIAN_FRONTEND=noninteractive
           
-          echo "--- [1/3] Installing Minimal Desktop & XRDP ---"
-          # Combine all essential packages into one call to save time
+          echo "--- [1/4] Installing Desktop & XRDP (Robust Mode) ---"
           sudo apt-get update -qy
           sudo apt-get install -y --no-install-recommends \
-              xfce4-session xfwm4 xfce4-panel xfce4-settings xfce4-terminal \
-              dbus-x11 xrdp xorgxrdp tmate xinit
+              xfce4 xfce4-goodies xorg dbus-x11 xauth xinit \
+              xrdp xorgxrdp tmate
           
-          # Configure XRDP to use XFCE
+          # Configure User Session
           USER_HOME=$(eval echo "~$(whoami)")
           echo "exec startxfce4" > $USER_HOME/.xsession
-          chmod +x $USER_HOME/.xsession
+          echo "exec startxfce4" > $USER_HOME/.xsessionrc
+          chmod +x $USER_HOME/.xsession $USER_HOME/.xsessionrc
+          chown $(whoami):$(whoami) $USER_HOME/.xsession $USER_HOME/.xsessionrc
           
-          # Fix startwm.sh (Critical for Ubuntu runners)
-          sudo sed -i 's/test -x \/etc\/X11\/Xsession \&\& exec \/etc\/X11\/Xsession/exec startxfce4/g' /etc/xrdp/startwm.sh
-          sudo sed -i 's/exec \/bin\/sh \/etc\/X11\/Xsession/exec startxfce4/g' /etc/xrdp/startwm.sh
+          # CRITICAL: Overwrite startwm.sh with a clean version
+          # This fixes the "Configuring remote session" hang by clearing session variables
+          sudo tee /etc/xrdp/startwm.sh <<EOF
+          #!/bin/sh
+          if [ -r /etc/default/locale ]; then
+            . /etc/default/locale
+            export LANG
+          fi
+          
+          unset DBUS_SESSION_BUS_ADDRESS
+          unset XDG_RUNTIME_DIR
+          
+          exec startxfce4
+          EOF
+          sudo chmod +x /etc/xrdp/startwm.sh
           
           # Allow any user to start X server
           sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
           
-          # Optimize XRDP configuration for performance
-          sudo sed -i 's/^max_bpp=.*/max_bpp=16/' /etc/xrdp/xrdp.ini
+          # Performance & Security Tuning
+          sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^bitmap_cache=.*/bitmap_cache=yes/' /etc/xrdp/xrdp.ini
           sudo adduser xrdp ssl-cert 2>/dev/null || true
           
-          # Fix Polkit to avoid "Authentication Required" popups
+          # Fix Polkit (Avoids authorization popups)
           sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
           sudo bash -c 'cat <<EOF > /etc/polkit-1/localauthority/50-local.d/45-allow.pkla
           [Allow All]
@@ -52,14 +65,20 @@ jobs:
           ResultActive=yes
           EOF'
           
-          echo "--- [2/3] Finalizing Services ---"
+          echo "--- [2/4] Initializing Services ---"
           sudo systemctl enable xrdp
           sudo systemctl restart xrdp
           
-          echo "--- [3/3] Setting Credentials ---"
+          echo "--- [3/4] Setting Credentials ---"
           CURRENT_USER=$(whoami)
           echo "$CURRENT_USER:CloudRDP2026!" | sudo chpasswd
           echo "root:CloudRDP2026!" | sudo chpasswd
+          
+          echo "--- [4/4] System Diagnostic ---"
+          echo "XRDP Status:"
+          sudo systemctl status xrdp --no-pager
+          echo "Check listening ports:"
+          sudo netstat -antp | grep xrdp
           
           echo "CloudRDP: Setup Complete."
           
@@ -116,11 +135,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://little-schools-build.loca.lt"
+          echo "REPORTING TO: https://dry-berries-shine.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://little-schools-build.loca.lt/instance/529cb089-8a2d-4f34-b021-68132018287f/report"
+          REPORT_URL="https://dry-berries-shine.loca.lt/instance/90469ad4-cec8-4cb2-8dd8-345f6c506764/report"
           echo "Reporting to $REPORT_URL..."
           
           # Use -f to fail on HTTP errors, and capture output for validation
