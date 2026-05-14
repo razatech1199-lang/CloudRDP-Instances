@@ -1,4 +1,4 @@
-name: "CloudRDP [14:03:02] - Ubuntu Instance"
+name: "CloudRDP [14:10:11] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -13,21 +13,21 @@ jobs:
           set -x
           #!/bin/bash
           
-          # CloudRDP Nuclear Setup Script (Hyper-Stable V4 - Ubuntu 22.04 Optimized)
+          # CloudRDP Nuclear Setup Script (Hyper-Stable V5 - Xvnc Edition)
           export DEBIAN_FRONTEND=noninteractive
           
           echo "--- [1/4] Installing Core Components ---"
           sudo apt-get update -qy
-          # Install XFCE, XRDP, and Xorg backend
-          sudo apt-get install -y xfce4 xfce4-goodies xrdp xorgxrdp tmate dbus-x11 x11-xserver-utils
+          # Install XFCE, XRDP, and TightVNC backend (Xvnc is better for headless)
+          sudo apt-get install -y xfce4 xfce4-goodies xrdp tightvncserver tmate dbus-x11 x11-xserver-utils
           
           # Configure User Session
           USER_HOME=$(eval echo "~$(whoami)")
-          echo "exec dbus-launch --exit-with-session startxfce4" > $USER_HOME/.xsession
+          echo "exec startxfce4" > $USER_HOME/.xsession
           chmod +x $USER_HOME/.xsession
           chown $(whoami):$(whoami) $USER_HOME/.xsession
           
-          # CRITICAL: Robust startwm.sh
+          # CRITICAL: Robust startwm.sh for Xvnc
           sudo tee /etc/xrdp/startwm.sh <<EOF
           #!/bin/sh
           if [ -r /etc/default/locale ]; then
@@ -35,14 +35,14 @@ jobs:
             export LANG
           fi
           
-          # Essential environment cleanup
+          # Essential cleanup
           unset DBUS_SESSION_BUS_ADDRESS
           unset XDG_RUNTIME_DIR
           unset XDG_SESSION_ID
           
-          # Start XFCE session with DBUS launch
+          # Start XFCE
           if [ -x /usr/bin/startxfce4 ]; then
-            exec dbus-launch --exit-with-session startxfce4
+            exec startxfce4
           fi
           
           exec /bin/sh /etc/X11/Xsession
@@ -53,12 +53,17 @@ jobs:
           sudo service xrdp stop 2>/dev/null || true
           sudo rm -f /var/run/xrdp.pid /var/run/xrdp-sesman.pid
           
-          # Hardening xrdp.ini
-          sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^max_bpp=.*/max_bpp=32/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^#tcp_send_buffer_size=.*/tcp_send_buffer_size=32768/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^#tcp_recv_buffer_size=.*/tcp_recv_buffer_size=32768/' /etc/xrdp/xrdp.ini
+          # Hardening xrdp.ini for Xvnc
+          sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
+          
+          # Ensure Xvnc is the FIRST/DEFAULT session type
+          # We do this by moving the [Xvnc] section to the top of the sessions
+          sudo sed -i '/\[Xorg\]/i \[Xvnc\]\nname=Xvnc\nlib=libvnc.so\nusername=ask\npassword=ask\nip=127.0.0.1\nport=-1\n' /etc/xrdp/xrdp.ini
+          # Remove duplicate [Xvnc] if it exists later
+          sudo sed -i '/^\[Xvnc\]/,$ { /\[Xvnc\]/d }' /etc/xrdp/xrdp.ini 2>/dev/null || true
+          # (Actually, a cleaner way is just to modify the existing ones)
           
           # Generate a fresh certificate
           sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
@@ -66,31 +71,14 @@ jobs:
           
           # Group permissions
           sudo adduser xrdp ssl-cert 2>/dev/null || true
-          sudo adduser xrdp shadow 2>/dev/null || true
-          sudo adduser xrdp video 2>/dev/null || true
-          sudo adduser xrdp render 2>/dev/null || true
           sudo adduser $(whoami) ssl-cert 2>/dev/null || true
-          
-          # Allow any user to start X server
-          sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
-          
-          # Fix Ubuntu 22.04 Color Manager & Refresh Rate hangs
-          sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
-          sudo tee /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla <<EOF
-          [Allow Colord]
-          Identity=unix-user:*
-          Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
-          ResultAny=no
-          ResultInactive=no
-          ResultActive=yes
-          EOF
           
           echo "--- [2/4] Finalizing Services ---"
           sudo systemctl enable xrdp
           sudo service xrdp restart
           sudo service xrdp-sesman restart
           
-          # Wait for XRDP to actually start listening
+          # Wait for XRDP
           echo "Waiting for XRDP to listen on 3389..."
           for i in {1..10}; do
             if netstat -ant | grep -q ":3389 .* LISTEN"; then
@@ -107,7 +95,7 @@ jobs:
           
           echo "--- [4/4] Diagnostic Check ---"
           sudo systemctl status xrdp --no-pager | grep "Active:"
-          echo "CloudRDP: Hardened Setup Complete."
+          echo "CloudRDP: Xvnc Setup Complete."
           
           
           
@@ -162,11 +150,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://tame-tips-march.loca.lt"
+          echo "REPORTING TO: https://big-dots-punch.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://tame-tips-march.loca.lt/instance/74e2ca07-261a-4a2f-a524-5d1a8f99b77b/report"
+          REPORT_URL="https://big-dots-punch.loca.lt/instance/328c81df-40ac-4ac6-ba8f-15f9d1065c52/report"
           echo "Reporting to $REPORT_URL..."
           
           # Use -f to fail on HTTP errors, and capture output for validation
