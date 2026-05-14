@@ -1,4 +1,4 @@
-name: "CloudRDP [11:50:14] - Ubuntu Instance"
+name: "CloudRDP [13:36:11] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -18,8 +18,8 @@ jobs:
           
           echo "--- [1/4] Installing Full Desktop Suite ---"
           sudo apt-get update -qy
-          # Remove --no-install-recommends to ensure all X11/DBUS bridges are present
-          sudo apt-get install -y xfce4 xfce4-goodies xrdp xorgxrdp tmate xorg dbus-x11 x11-xserver-utils xserver-xorg-core xserver-xorg-video-dummy
+          # Install XFCE and XRDP with TightVNC backend (most stable for headless)
+          sudo apt-get install -y xfce4 xfce4-goodies xrdp tightvncserver tmate xorg dbus-x11 x11-xserver-utils
           
           # Configure User Session
           USER_HOME=$(eval echo "~$(whoami)")
@@ -54,15 +54,23 @@ jobs:
           sudo service xrdp stop 2>/dev/null || true
           sudo rm -f /var/run/xrdp.pid /var/run/xrdp-sesman.pid
           
-          # Hardening xrdp.ini for compatibility
+          # Hardening xrdp.ini for VNC compatibility
           sudo sed -i 's/^port=3389/port=3389\naddress=0.0.0.0/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^max_bpp=.*/max_bpp=16/' /etc/xrdp/xrdp.ini
           
-          # Generate a fresh certificate to avoid "Internal Error"
+          # Ensure VNC is the first/default session type
+          sudo sed -i 's/\[Xorg\]/\[vnc_fallback\]/' /etc/xrdp/xrdp.ini
+          sudo sed -i '0,/\[Xvnc\]/s/\[Xvnc\]/\[Xorg\]/' /etc/xrdp/xrdp.ini
+          # Re-label the original Xorg to avoid confusion
+          sudo sed -i 's/\[vnc_fallback\]/\[Xvnc\]/' /etc/xrdp/xrdp.ini
+          
+          # Generate a fresh certificate
           sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
           sudo chown xrdp:xrdp /etc/xrdp/key.pem /etc/xrdp/cert.pem
+          
+          # Permissions for VNC
+          sudo adduser xrdp shadow 2>/dev/null || true
           
           # Allow any user to start X server (headless fix)
           sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
@@ -164,11 +172,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://angry-ways-bake.loca.lt"
+          echo "REPORTING TO: https://puny-mammals-film.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://angry-ways-bake.loca.lt/instance/1907357a-5b3e-4d0c-991c-a034235c2763/report"
+          REPORT_URL="https://puny-mammals-film.loca.lt/instance/66481f19-625d-42cf-9f65-331d3c185475/report"
           echo "Reporting to $REPORT_URL..."
           
           # Use -f to fail on HTTP errors, and capture output for validation
