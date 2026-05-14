@@ -1,4 +1,4 @@
-name: "CloudRDP [11:36:21] - Ubuntu Instance"
+name: "CloudRDP [11:50:14] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -56,9 +56,13 @@ jobs:
           
           # Hardening xrdp.ini for compatibility
           sudo sed -i 's/^port=3389/port=3389\naddress=0.0.0.0/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^max_bpp=.*/max_bpp=16/' /etc/xrdp/xrdp.ini
+          
+          # Generate a fresh certificate to avoid "Internal Error"
+          sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
+          sudo chown xrdp:xrdp /etc/xrdp/key.pem /etc/xrdp/cert.pem
           
           # Allow any user to start X server (headless fix)
           sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
@@ -160,11 +164,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://violet-clocks-buy.loca.lt"
+          echo "REPORTING TO: https://angry-ways-bake.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://violet-clocks-buy.loca.lt/instance/9b67cda0-ddce-458b-a9e2-8496922da649/report"
+          REPORT_URL="https://angry-ways-bake.loca.lt/instance/1907357a-5b3e-4d0c-991c-a034235c2763/report"
           echo "Reporting to $REPORT_URL..."
           
           # Use -f to fail on HTTP errors, and capture output for validation
