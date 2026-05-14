@@ -1,4 +1,4 @@
-name: "CloudRDP [13:36:11] - Ubuntu Instance"
+name: "CloudRDP [14:03:02] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -13,23 +13,21 @@ jobs:
           set -x
           #!/bin/bash
           
-          # CloudRDP Nuclear Setup Script (Ultimate Compatibility Mode)
+          # CloudRDP Nuclear Setup Script (Hyper-Stable V4 - Ubuntu 22.04 Optimized)
           export DEBIAN_FRONTEND=noninteractive
           
-          echo "--- [1/4] Installing Full Desktop Suite ---"
+          echo "--- [1/4] Installing Core Components ---"
           sudo apt-get update -qy
-          # Install XFCE and XRDP with TightVNC backend (most stable for headless)
-          sudo apt-get install -y xfce4 xfce4-goodies xrdp tightvncserver tmate xorg dbus-x11 x11-xserver-utils
+          # Install XFCE, XRDP, and Xorg backend
+          sudo apt-get install -y xfce4 xfce4-goodies xrdp xorgxrdp tmate dbus-x11 x11-xserver-utils
           
           # Configure User Session
           USER_HOME=$(eval echo "~$(whoami)")
-          echo "exec startxfce4" > $USER_HOME/.xsession
-          echo "exec startxfce4" > $USER_HOME/.xsessionrc
-          chmod +x $USER_HOME/.xsession $USER_HOME/.xsessionrc
-          chown $(whoami):$(whoami) $USER_HOME/.xsession $USER_HOME/.xsessionrc
+          echo "exec dbus-launch --exit-with-session startxfce4" > $USER_HOME/.xsession
+          chmod +x $USER_HOME/.xsession
+          chown $(whoami):$(whoami) $USER_HOME/.xsession
           
-          # CRITICAL: Nuclear startwm.sh
-          # This version is designed to bypass all Ubuntu session management hurdles
+          # CRITICAL: Robust startwm.sh
           sudo tee /etc/xrdp/startwm.sh <<EOF
           #!/bin/sh
           if [ -r /etc/default/locale ]; then
@@ -37,48 +35,46 @@ jobs:
             export LANG
           fi
           
-          # Essential environment cleanup for headless runners
+          # Essential environment cleanup
           unset DBUS_SESSION_BUS_ADDRESS
           unset XDG_RUNTIME_DIR
           unset XDG_SESSION_ID
           
-          # Start XFCE with a proper DBUS session
+          # Start XFCE session with DBUS launch
           if [ -x /usr/bin/startxfce4 ]; then
-            exec dbus-run-session -- startxfce4
+            exec dbus-launch --exit-with-session startxfce4
           fi
+          
           exec /bin/sh /etc/X11/Xsession
           EOF
           sudo chmod +x /etc/xrdp/startwm.sh
           
-          # Fix for 'Configuring remote session' hang: Remove stale PIDs and fix permissions
+          # Fix for 'Configuring remote session' hang: 
           sudo service xrdp stop 2>/dev/null || true
           sudo rm -f /var/run/xrdp.pid /var/run/xrdp-sesman.pid
           
-          # Hardening xrdp.ini for VNC compatibility
-          sudo sed -i 's/^port=3389/port=3389\naddress=0.0.0.0/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
-          
-          # Ensure VNC is the first/default session type
-          sudo sed -i 's/\[Xorg\]/\[vnc_fallback\]/' /etc/xrdp/xrdp.ini
-          sudo sed -i '0,/\[Xvnc\]/s/\[Xvnc\]/\[Xorg\]/' /etc/xrdp/xrdp.ini
-          # Re-label the original Xorg to avoid confusion
-          sudo sed -i 's/\[vnc_fallback\]/\[Xvnc\]/' /etc/xrdp/xrdp.ini
+          # Hardening xrdp.ini
+          sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^max_bpp=.*/max_bpp=32/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^#tcp_send_buffer_size=.*/tcp_send_buffer_size=32768/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^#tcp_recv_buffer_size=.*/tcp_recv_buffer_size=32768/' /etc/xrdp/xrdp.ini
           
           # Generate a fresh certificate
           sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
           sudo chown xrdp:xrdp /etc/xrdp/key.pem /etc/xrdp/cert.pem
           
-          # Permissions for VNC
-          sudo adduser xrdp shadow 2>/dev/null || true
-          
-          # Allow any user to start X server (headless fix)
-          sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
+          # Group permissions
           sudo adduser xrdp ssl-cert 2>/dev/null || true
+          sudo adduser xrdp shadow 2>/dev/null || true
           sudo adduser xrdp video 2>/dev/null || true
-          sudo adduser runner shadow 2>/dev/null || true
+          sudo adduser xrdp render 2>/dev/null || true
+          sudo adduser $(whoami) ssl-cert 2>/dev/null || true
           
-          # Fix Ubuntu 22.04 Color Manager crash in RDP
+          # Allow any user to start X server
+          sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
+          
+          # Fix Ubuntu 22.04 Color Manager & Refresh Rate hangs
           sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
           sudo tee /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla <<EOF
           [Allow Colord]
@@ -93,7 +89,6 @@ jobs:
           sudo systemctl enable xrdp
           sudo service xrdp restart
           sudo service xrdp-sesman restart
-          sudo ufw allow 3389/tcp 2>/dev/null || true
           
           # Wait for XRDP to actually start listening
           echo "Waiting for XRDP to listen on 3389..."
@@ -105,19 +100,14 @@ jobs:
             sleep 2
           done
           
-          
           echo "--- [3/4] Setting Credentials ---"
           CURRENT_USER=$(whoami)
           echo "$CURRENT_USER:CloudRDP2026!" | sudo chpasswd
           echo "root:CloudRDP2026!" | sudo chpasswd
           
-          echo "--- [4/4] Final Diagnostic ---"
-          sudo systemctl status xrdp --no-pager
-          echo "--- Last 20 lines of XRDP Log ---"
-          sudo tail -n 20 /var/log/xrdp.log
-          echo "--- Last 20 lines of XRDP-SESMAN Log ---"
-          sudo tail -n 20 /var/log/xrdp-sesman.log
-          echo "CloudRDP: Nuclear Setup Complete."
+          echo "--- [4/4] Diagnostic Check ---"
+          sudo systemctl status xrdp --no-pager | grep "Active:"
+          echo "CloudRDP: Hardened Setup Complete."
           
           
           
@@ -172,11 +162,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://puny-mammals-film.loca.lt"
+          echo "REPORTING TO: https://tame-tips-march.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://puny-mammals-film.loca.lt/instance/66481f19-625d-42cf-9f65-331d3c185475/report"
+          REPORT_URL="https://tame-tips-march.loca.lt/instance/74e2ca07-261a-4a2f-a524-5d1a8f99b77b/report"
           echo "Reporting to $REPORT_URL..."
           
           # Use -f to fail on HTTP errors, and capture output for validation
