@@ -1,4 +1,4 @@
-name: "CloudRDP [14:27:06] - Ubuntu Instance"
+name: "CloudRDP [15:14:44] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -13,14 +13,13 @@ jobs:
           set -x
           #!/bin/bash
           
-          # CloudRDP Nuclear Setup Script (Hyper-Stable V7 - Nuclear Xvnc Fixed)
+          # CloudRDP Nuclear Setup Script (Hyper-Stable V8 - Safe Patch Edition)
           export DEBIAN_FRONTEND=noninteractive
           
-          echo "--- [1/4] Cleaning & Installing ---"
+          echo "--- [1/4] Installing Components ---"
           sudo apt-get update -qy
-          # Remove potential conflicts
+          # Purge conflicting managers
           sudo apt-get purge -y lightdm gdm3 2>/dev/null || true
-          
           # Install core components
           sudo apt-get install -y xfce4 xfce4-goodies xrdp tightvncserver tmate dbus-x11
           
@@ -36,11 +35,13 @@ jobs:
           chown $(whoami):$(whoami) $USER_HOME/.xsession
           cp $USER_HOME/.xsession $USER_HOME/.xsessionrc
           
-          # Generate certificates (REQUIRED for XRDP to start)
+          # Generate certificates
           sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
           sudo chown xrdp:xrdp /etc/xrdp/key.pem /etc/xrdp/cert.pem
+          sudo chmod 644 /etc/xrdp/cert.pem
+          sudo chmod 600 /etc/xrdp/key.pem
           
-          # CRITICAL: Nuclear startwm.sh
+          # CRITICAL: Robust startwm.sh
           sudo tee /etc/xrdp/startwm.sh <<EOF
           #!/bin/sh
           if [ -r /etc/default/locale ]; then
@@ -54,39 +55,29 @@ jobs:
           EOF
           sudo chmod +x /etc/xrdp/startwm.sh
           
-          # Rebuild xrdp.ini with correct certificate paths
-          sudo tee /etc/xrdp/xrdp.ini <<EOF
-          [globals]
-          ini_version=1
-          fork=true
-          port=3389
-          tcp_nodelay=true
-          tcp_keepalive=true
-          security_layer=rdp
-          crypt_level=none
-          certificate=/etc/xrdp/cert.pem
-          key_file=/etc/xrdp/key.pem
-          ssl_protocols=TLSv1.2, TLSv1.3
-          ad_group_filter=
-          max_bpp=16
-          use_fastpath=both
+          # SAFE PATCHING xrdp.ini (Instead of overwriting)
+          sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^max_bpp=.*/max_bpp=16/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's|^certificate=.*|certificate=/etc/xrdp/cert.pem|' /etc/xrdp/xrdp.ini
+          sudo sed -i 's|^key_file=.*|key_file=/etc/xrdp/key.pem|' /etc/xrdp/xrdp.ini
           
-          [Xvnc]
-          name=Xvnc
-          lib=libvnc.so
-          username=ask
-          password=ask
-          ip=127.0.0.1
-          port=-1
-          EOF
+          # Ensure Xvnc is the preferred session
+          # 1. Comment out Xorg sections
+          sudo sed -i '/\[Xorg\]/,/^[[:space:]]*$/s/^/#/' /etc/xrdp/xrdp.ini
+          # 2. Ensure Xvnc section is active and at the top of providers
+          # (Ubuntu's default xrdp.ini already has [Xvnc], we just make it first)
           
-          # Ensure xrdp-sesman is configured correctly
+          # Group permissions
+          sudo adduser xrdp ssl-cert 2>/dev/null || true
+          
+          # Ensure sesman doesn't block connections
           sudo sed -i 's/TerminalServerUsers=tsusers/TerminalServerUsers=/' /etc/xrdp/sesman.ini
           sudo sed -i 's/TerminalServerAdmins=tsadmins/TerminalServerAdmins=/' /etc/xrdp/sesman.ini
           
           echo "--- [2/4] Finalizing Services ---"
           sudo systemctl enable xrdp
-          sudo service xrdp restart
+          sudo service xrdp restart || (sudo journalctl -xeu xrdp --no-pager && exit 1)
           sudo service xrdp-sesman restart
           
           # Wait for XRDP
@@ -106,7 +97,7 @@ jobs:
           
           echo "--- [4/4] Final Diagnostic ---"
           sudo systemctl status xrdp --no-pager | grep "Active:"
-          echo "CloudRDP: Fixed Xvnc Setup Complete."
+          echo "CloudRDP: Setup Complete."
           
           
           
@@ -161,11 +152,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://wet-months-fold.loca.lt"
+          echo "REPORTING TO: https://yummy-rockets-clap.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://wet-months-fold.loca.lt/instance/9bd74040-5b03-47ee-b6fe-98f6abd50f9f/report"
+          REPORT_URL="https://yummy-rockets-clap.loca.lt/instance/ae73c140-e06b-4fd9-b257-142ffe94885d/report"
           echo "Reporting to $REPORT_URL..."
           
           # Use -f to fail on HTTP errors, and capture output for validation
