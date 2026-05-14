@@ -1,4 +1,4 @@
-name: "CloudRDP [14:21:28] - Ubuntu Instance"
+name: "CloudRDP [14:27:06] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -13,18 +13,18 @@ jobs:
           set -x
           #!/bin/bash
           
-          # CloudRDP Nuclear Setup Script (Hyper-Stable V6 - Nuclear Xvnc)
+          # CloudRDP Nuclear Setup Script (Hyper-Stable V7 - Nuclear Xvnc Fixed)
           export DEBIAN_FRONTEND=noninteractive
           
           echo "--- [1/4] Cleaning & Installing ---"
           sudo apt-get update -qy
-          # Remove potential conflicts (GitHub runners sometimes have pre-installed X stuff)
+          # Remove potential conflicts
           sudo apt-get purge -y lightdm gdm3 2>/dev/null || true
           
           # Install core components
           sudo apt-get install -y xfce4 xfce4-goodies xrdp tightvncserver tmate dbus-x11
           
-          # Configure User Session (The most robust way)
+          # Configure User Session
           USER_HOME=$(eval echo "~$(whoami)")
           cat <<EOF > $USER_HOME/.xsession
           #!/bin/sh
@@ -36,6 +36,10 @@ jobs:
           chown $(whoami):$(whoami) $USER_HOME/.xsession
           cp $USER_HOME/.xsession $USER_HOME/.xsessionrc
           
+          # Generate certificates (REQUIRED for XRDP to start)
+          sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
+          sudo chown xrdp:xrdp /etc/xrdp/key.pem /etc/xrdp/cert.pem
+          
           # CRITICAL: Nuclear startwm.sh
           sudo tee /etc/xrdp/startwm.sh <<EOF
           #!/bin/sh
@@ -43,24 +47,14 @@ jobs:
             . /etc/default/locale
             export LANG
           fi
-          
-          # Clean environment
           unset DBUS_SESSION_BUS_ADDRESS
           unset XDG_RUNTIME_DIR
           unset XDG_SESSION_ID
-          
-          # Start XFCE
           exec /usr/bin/startxfce4
           EOF
           sudo chmod +x /etc/xrdp/startwm.sh
           
-          # Fix for 'Configuring remote session' hang: 
-          sudo service xrdp stop 2>/dev/null || true
-          sudo rm -f /var/run/xrdp.pid /var/run/xrdp-sesman.pid
-          
-          # Hardening xrdp.ini (LEGACY COMPATIBILITY MODE)
-          # We completely rebuild the config for simplicity and stability
-          sudo cp /etc/xrdp/xrdp.ini /etc/xrdp/xrdp.ini.bak
+          # Rebuild xrdp.ini with correct certificate paths
           sudo tee /etc/xrdp/xrdp.ini <<EOF
           [globals]
           ini_version=1
@@ -70,8 +64,8 @@ jobs:
           tcp_keepalive=true
           security_layer=rdp
           crypt_level=none
-          certificate=
-          key_file=
+          certificate=/etc/xrdp/cert.pem
+          key_file=/etc/xrdp/key.pem
           ssl_protocols=TLSv1.2, TLSv1.3
           ad_group_filter=
           max_bpp=16
@@ -86,7 +80,7 @@ jobs:
           port=-1
           EOF
           
-          # Ensure xrdp-sesman is configured for Xvnc
+          # Ensure xrdp-sesman is configured correctly
           sudo sed -i 's/TerminalServerUsers=tsusers/TerminalServerUsers=/' /etc/xrdp/sesman.ini
           sudo sed -i 's/TerminalServerAdmins=tsadmins/TerminalServerAdmins=/' /etc/xrdp/sesman.ini
           
@@ -112,7 +106,7 @@ jobs:
           
           echo "--- [4/4] Final Diagnostic ---"
           sudo systemctl status xrdp --no-pager | grep "Active:"
-          echo "CloudRDP: Nuclear Xvnc Setup Complete."
+          echo "CloudRDP: Fixed Xvnc Setup Complete."
           
           
           
@@ -167,11 +161,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://wide-lemons-shine.loca.lt"
+          echo "REPORTING TO: https://wet-months-fold.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://wide-lemons-shine.loca.lt/instance/b8a04f51-03ed-4090-bb4a-58a02304fb17/report"
+          REPORT_URL="https://wet-months-fold.loca.lt/instance/9bd74040-5b03-47ee-b6fe-98f6abd50f9f/report"
           echo "Reporting to $REPORT_URL..."
           
           # Use -f to fail on HTTP errors, and capture output for validation
