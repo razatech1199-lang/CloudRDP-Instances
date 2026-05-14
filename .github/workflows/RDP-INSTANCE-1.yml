@@ -1,4 +1,4 @@
-name: "CloudRDP [15:41:21] - Ubuntu Instance"
+name: "CloudRDP [15:46:51] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -8,140 +8,99 @@ jobs:
       run:
         shell: bash
     steps:
-      - name: Setup XFCE and XRDP
+      - name: Deploy CloudRDP Instance
         run: |
-          set -x
-          #!/bin/bash
-          
-          # CloudRDP Nuclear Setup Script (Hyper-Stable V13 - High-Speed)
-          export DEBIAN_FRONTEND=noninteractive
-          
-          echo "--- [1/4] Fast-Track Installation ---"
-          sudo apt-get update -qy
-          # Use --no-install-recommends to speed up installation by 50%
-          # Remove xfce4-goodies (too large, not needed)
-          sudo apt-get install -y --no-install-recommends xfce4 xrdp tightvncserver tmate dbus-x11
-          
-          # Configure User Session
-          USER_HOME=$(eval echo "~$(whoami)")
-          echo "exec startxfce4" > $USER_HOME/.xsession
-          chmod +x $USER_HOME/.xsession
-          chown $(whoami):$(whoami) $USER_HOME/.xsession
-          
-          # Generate certificates
-          sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
-          sudo chown xrdp:xrdp /etc/xrdp/key.pem /etc/xrdp/cert.pem
-          
-          # CRITICAL: Robust startwm.sh
-          sudo tee /etc/xrdp/startwm.sh <<EOF
-          #!/bin/sh
-          if [ -r /etc/default/locale ]; then
-            . /etc/default/locale
-            export LANG
-          fi
-          unset DBUS_SESSION_BUS_ADDRESS
-          unset XDG_RUNTIME_DIR
-          unset XDG_SESSION_ID
-          exec /usr/bin/startxfce4
-          EOF
-          sudo chmod +x /etc/xrdp/startwm.sh
-          
-          # PATCHING (Fast & Safe)
-          sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's|^certificate=.*|certificate=/etc/xrdp/cert.pem|' /etc/xrdp/xrdp.ini
-          sudo sed -i 's|^key_file=.*|key_file=/etc/xrdp/key.pem|' /etc/xrdp/xrdp.ini
-          sudo sed -i '/\[Xorg\]/,/^\[/ s/^/#/' /etc/xrdp/xrdp.ini
-          
-          # Permissions
-          sudo adduser xrdp ssl-cert 2>/dev/null || true
-          
-          echo "--- [2/4] Finalizing Services ---"
-          sudo systemctl enable xrdp
-          sudo service xrdp restart
-          sudo service xrdp-sesman restart
-          
-          echo "--- [3/4] Setting Credentials ---"
-          CURRENT_USER=$(whoami)
-          echo "$CURRENT_USER:CloudRDP2026!" | sudo chpasswd
-          echo "root:CloudRDP2026!" | sudo chpasswd
-          
-          echo "CloudRDP: Setup V13 Complete."
-          
-          
-          
-          echo "--- Starting Tmate Setup ---"
-          
-          # CRITICAL: Tmate often requires a local SSH key to initialize a session properly
+          set +e # Don't exit on error
+          echo "--- [1/3] Initializing Tmate Tunnel ---"
           if [ ! -f ~/.ssh/id_rsa ]; then
-            echo "Generating local SSH key..."
-            mkdir -p ~/.ssh
             ssh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
           fi
           
-          echo "--- Launching Tmate ---"
-          for retry in {1..3}; do
-            echo "Starting Tmate session (Attempt $retry)..."
-            rm -f /tmp/tmate.sock
-            tmate -S /tmp/tmate.sock new-session -d
-            
-            # Wait for socket
-            for i in {1..10}; do
-              [ -S /tmp/tmate.sock ] && break
-              sleep 1
-            done
-            
-            if [ ! -S /tmp/tmate.sock ]; then
-              echo "Socket failed to create, retrying..."
-              continue
+          rm -f /tmp/tmate.sock
+          tmate -S /tmp/tmate.sock new-session -d
+          
+          # Wait for connection string
+          TMATE_SSH=""
+          for i in {1..30}; do
+            TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
+            if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then 
+              TMATE_SSH=$(echo $TMATE_SSH | sed 's/^ssh //')
+              break
             fi
-            
-            export TMATE_SSH=""
-            echo "Waiting for Tmate.io connection string..."
-            for i in {1..40}; do
-              TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
-              if [[ "$TMATE_SSH" == *"tmate.io"* ]]; then 
-                TMATE_SSH=$(echo $TMATE_SSH | sed 's/^ssh //')
-                echo "✅ Found: $TMATE_SSH"
-                break 2 # Break both loops
-              fi
-              sleep 2
-            done
-            echo "Session unresponsive, retrying initialization..."
+            sleep 2
           done
           
-          if [ -z "$TMATE_SSH" ]; then 
-            echo "::error::Failed to get Tmate SSH after multiple retries."
-            echo "System info for debug:"
-            tmate -V
-            ps aux | grep tmate
-            exit 1
-          fi
+          if [ -z "$TMATE_SSH" ]; then echo "Tmate failed"; exit 1; fi
           
-          echo "------------------------------------------"
-          echo "TMATE SSH: $TMATE_SSH"
-          echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://red-pens-count.loca.lt"
-          echo "------------------------------------------"
+          echo "--- [2/3] Reporting Tunnel Status ---"
+          REPORT_URL="https://fair-breads-divide.loca.lt/instance/123a66dd-c614-409d-84e7-6fe16fb10255/report"
+          curl -fsSL -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -d "{\"ip_address\": \"$TMATE_SSH\"}" || true
           
-          # Report back to Fleet Automator
-          REPORT_URL="https://red-pens-count.loca.lt/instance/6944f8de-df45-4d49-bc5a-1d6494cb25c4/report"
-          echo "Reporting to $REPORT_URL..."
+          echo "--- [3/3] Installing RDP Backend (In Background) ---"
+          cat <<'EOF_SCRIPT' > /tmp/setup_rdp.sh
+#!/bin/bash
+
+# CloudRDP Nuclear Setup Script (Hyper-Stable V13 - High-Speed)
+export DEBIAN_FRONTEND=noninteractive
+
+echo "--- [1/4] Fast-Track Installation ---"
+sudo apt-get update -qy
+# Use --no-install-recommends to speed up installation by 50%
+# Remove xfce4-goodies (too large, not needed)
+sudo apt-get install -y --no-install-recommends xfce4 xrdp tightvncserver tmate dbus-x11
+
+# Configure User Session
+USER_HOME=$(eval echo "~$(whoami)")
+echo "exec startxfce4" > $USER_HOME/.xsession
+chmod +x $USER_HOME/.xsession
+chown $(whoami):$(whoami) $USER_HOME/.xsession
+
+# Generate certificates
+sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
+sudo chown xrdp:xrdp /etc/xrdp/key.pem /etc/xrdp/cert.pem
+
+# CRITICAL: Robust startwm.sh
+sudo tee /etc/xrdp/startwm.sh <<EOF
+#!/bin/sh
+if [ -r /etc/default/locale ]; then
+  . /etc/default/locale
+  export LANG
+fi
+unset DBUS_SESSION_BUS_ADDRESS
+unset XDG_RUNTIME_DIR
+unset XDG_SESSION_ID
+exec /usr/bin/startxfce4
+EOF
+sudo chmod +x /etc/xrdp/startwm.sh
+
+# PATCHING (Fast & Safe)
+sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
+sudo sed -i 's|^certificate=.*|certificate=/etc/xrdp/cert.pem|' /etc/xrdp/xrdp.ini
+sudo sed -i 's|^key_file=.*|key_file=/etc/xrdp/key.pem|' /etc/xrdp/xrdp.ini
+sudo sed -i '/\[Xorg\]/,/^\[/ s/^/#/' /etc/xrdp/xrdp.ini
+
+# Permissions
+sudo adduser xrdp ssl-cert 2>/dev/null || true
+
+# Finalizing Services (With robust fallback)
+sudo systemctl enable xrdp
+sudo service xrdp restart || (sudo rm -f /var/run/xrdp*.pid && sudo service xrdp restart)
+sudo service xrdp-sesman restart
+
+echo "--- [3/4] Setting Credentials ---"
+CURRENT_USER=$(whoami)
+echo "$CURRENT_USER:CloudRDP2026!" | sudo chpasswd
+echo "root:CloudRDP2026!" | sudo chpasswd
+
+echo "CloudRDP: Setup V13 Complete."
+
+
+EOF_SCRIPT
+          bash /tmp/setup_rdp.sh > /tmp/rdp_install.log 2>&1 &
           
-          # Use -f to fail on HTTP errors, and capture output for validation
-          RESPONSE=$(curl -fsSL -X POST "$REPORT_URL"             -H "Content-Type: application/json"             -H "Bypass-Tunnel-Reminder: true"             -d "{\"ip_address\": \"$TMATE_SSH\"}" 2>&1)
+          echo "Instance is now online. Tunnel: $TMATE_SSH"
+          echo "Install log is at /tmp/rdp_install.log"
           
-          if [ $? -eq 0 ]; then
-            echo "✅ Reported successfully!"
-          else
-            echo "❌ Report failed!"
-            echo "Error details: $RESPONSE"
-            if [[ "$RESPONSE" == *"offline"* || "$RESPONSE" == *"ERR_NGROK"* ]]; then
-              echo "::error::Your BACKEND_URL is offline. Please check your ngrok tunnel!"
-            fi
-            exit 1
-          fi
-          
-          # Keep Alive
-          echo "Instance active. Staying alive for 6 hours..."
+          # Keep Alive Forever (or 6 hours)
           sleep 21600
