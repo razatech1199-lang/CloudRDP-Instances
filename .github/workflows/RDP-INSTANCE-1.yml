@@ -1,4 +1,4 @@
-name: "CloudRDP [11:26:22] - Ubuntu Instance"
+name: "CloudRDP [11:36:21] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -19,7 +19,7 @@ jobs:
           echo "--- [1/4] Installing Full Desktop Suite ---"
           sudo apt-get update -qy
           # Remove --no-install-recommends to ensure all X11/DBUS bridges are present
-          sudo apt-get install -y xfce4 xfce4-goodies xrdp xorgxrdp tmate xorg dbus-x11 x11-xserver-utils
+          sudo apt-get install -y xfce4 xfce4-goodies xrdp xorgxrdp tmate xorg dbus-x11 x11-xserver-utils xserver-xorg-core xserver-xorg-video-dummy
           
           # Configure User Session
           USER_HOME=$(eval echo "~$(whoami)")
@@ -56,14 +56,15 @@ jobs:
           
           # Hardening xrdp.ini for compatibility
           sudo sed -i 's/^port=3389/port=3389\naddress=0.0.0.0/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
+          sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
           sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
           
           # Allow any user to start X server (headless fix)
           sudo bash -c 'echo "allowed_users=anybody" > /etc/X11/Xwrapper.config'
           sudo adduser xrdp ssl-cert 2>/dev/null || true
           sudo adduser xrdp video 2>/dev/null || true
+          sudo adduser runner shadow 2>/dev/null || true
           
           # Fix Ubuntu 22.04 Color Manager crash in RDP
           sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
@@ -100,6 +101,10 @@ jobs:
           
           echo "--- [4/4] Final Diagnostic ---"
           sudo systemctl status xrdp --no-pager
+          echo "--- Last 20 lines of XRDP Log ---"
+          sudo tail -n 20 /var/log/xrdp.log
+          echo "--- Last 20 lines of XRDP-SESMAN Log ---"
+          sudo tail -n 20 /var/log/xrdp-sesman.log
           echo "CloudRDP: Nuclear Setup Complete."
           
           
@@ -155,11 +160,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://khaki-paws-begin.loca.lt"
+          echo "REPORTING TO: https://violet-clocks-buy.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://khaki-paws-begin.loca.lt/instance/dc7598b5-b22d-45a3-a29d-5bae5d17f752/report"
+          REPORT_URL="https://violet-clocks-buy.loca.lt/instance/9b67cda0-ddce-458b-a9e2-8496922da649/report"
           echo "Reporting to $REPORT_URL..."
           
           # Use -f to fail on HTTP errors, and capture output for validation
