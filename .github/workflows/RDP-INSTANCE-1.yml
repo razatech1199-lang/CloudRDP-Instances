@@ -1,4 +1,4 @@
-name: "CloudRDP [14:10:11] - Ubuntu Instance"
+name: "CloudRDP [14:21:28] - Ubuntu Instance"
 on:
   workflow_dispatch:
 jobs:
@@ -13,21 +13,30 @@ jobs:
           set -x
           #!/bin/bash
           
-          # CloudRDP Nuclear Setup Script (Hyper-Stable V5 - Xvnc Edition)
+          # CloudRDP Nuclear Setup Script (Hyper-Stable V6 - Nuclear Xvnc)
           export DEBIAN_FRONTEND=noninteractive
           
-          echo "--- [1/4] Installing Core Components ---"
+          echo "--- [1/4] Cleaning & Installing ---"
           sudo apt-get update -qy
-          # Install XFCE, XRDP, and TightVNC backend (Xvnc is better for headless)
-          sudo apt-get install -y xfce4 xfce4-goodies xrdp tightvncserver tmate dbus-x11 x11-xserver-utils
+          # Remove potential conflicts (GitHub runners sometimes have pre-installed X stuff)
+          sudo apt-get purge -y lightdm gdm3 2>/dev/null || true
           
-          # Configure User Session
+          # Install core components
+          sudo apt-get install -y xfce4 xfce4-goodies xrdp tightvncserver tmate dbus-x11
+          
+          # Configure User Session (The most robust way)
           USER_HOME=$(eval echo "~$(whoami)")
-          echo "exec startxfce4" > $USER_HOME/.xsession
+          cat <<EOF > $USER_HOME/.xsession
+          #!/bin/sh
+          export XDG_SESSION_TYPE=x11
+          export XDG_CURRENT_DESKTOP=XFCE
+          exec startxfce4
+          EOF
           chmod +x $USER_HOME/.xsession
           chown $(whoami):$(whoami) $USER_HOME/.xsession
+          cp $USER_HOME/.xsession $USER_HOME/.xsessionrc
           
-          # CRITICAL: Robust startwm.sh for Xvnc
+          # CRITICAL: Nuclear startwm.sh
           sudo tee /etc/xrdp/startwm.sh <<EOF
           #!/bin/sh
           if [ -r /etc/default/locale ]; then
@@ -35,17 +44,13 @@ jobs:
             export LANG
           fi
           
-          # Essential cleanup
+          # Clean environment
           unset DBUS_SESSION_BUS_ADDRESS
           unset XDG_RUNTIME_DIR
           unset XDG_SESSION_ID
           
           # Start XFCE
-          if [ -x /usr/bin/startxfce4 ]; then
-            exec startxfce4
-          fi
-          
-          exec /bin/sh /etc/X11/Xsession
+          exec /usr/bin/startxfce4
           EOF
           sudo chmod +x /etc/xrdp/startwm.sh
           
@@ -53,25 +58,37 @@ jobs:
           sudo service xrdp stop 2>/dev/null || true
           sudo rm -f /var/run/xrdp.pid /var/run/xrdp-sesman.pid
           
-          # Hardening xrdp.ini for Xvnc
-          sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
-          sudo sed -i 's/^max_bpp=.*/max_bpp=24/' /etc/xrdp/xrdp.ini
+          # Hardening xrdp.ini (LEGACY COMPATIBILITY MODE)
+          # We completely rebuild the config for simplicity and stability
+          sudo cp /etc/xrdp/xrdp.ini /etc/xrdp/xrdp.ini.bak
+          sudo tee /etc/xrdp/xrdp.ini <<EOF
+          [globals]
+          ini_version=1
+          fork=true
+          port=3389
+          tcp_nodelay=true
+          tcp_keepalive=true
+          security_layer=rdp
+          crypt_level=none
+          certificate=
+          key_file=
+          ssl_protocols=TLSv1.2, TLSv1.3
+          ad_group_filter=
+          max_bpp=16
+          use_fastpath=both
           
-          # Ensure Xvnc is the FIRST/DEFAULT session type
-          # We do this by moving the [Xvnc] section to the top of the sessions
-          sudo sed -i '/\[Xorg\]/i \[Xvnc\]\nname=Xvnc\nlib=libvnc.so\nusername=ask\npassword=ask\nip=127.0.0.1\nport=-1\n' /etc/xrdp/xrdp.ini
-          # Remove duplicate [Xvnc] if it exists later
-          sudo sed -i '/^\[Xvnc\]/,$ { /\[Xvnc\]/d }' /etc/xrdp/xrdp.ini 2>/dev/null || true
-          # (Actually, a cleaner way is just to modify the existing ones)
+          [Xvnc]
+          name=Xvnc
+          lib=libvnc.so
+          username=ask
+          password=ask
+          ip=127.0.0.1
+          port=-1
+          EOF
           
-          # Generate a fresh certificate
-          sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
-          sudo chown xrdp:xrdp /etc/xrdp/key.pem /etc/xrdp/cert.pem
-          
-          # Group permissions
-          sudo adduser xrdp ssl-cert 2>/dev/null || true
-          sudo adduser $(whoami) ssl-cert 2>/dev/null || true
+          # Ensure xrdp-sesman is configured for Xvnc
+          sudo sed -i 's/TerminalServerUsers=tsusers/TerminalServerUsers=/' /etc/xrdp/sesman.ini
+          sudo sed -i 's/TerminalServerAdmins=tsadmins/TerminalServerAdmins=/' /etc/xrdp/sesman.ini
           
           echo "--- [2/4] Finalizing Services ---"
           sudo systemctl enable xrdp
@@ -79,7 +96,7 @@ jobs:
           sudo service xrdp-sesman restart
           
           # Wait for XRDP
-          echo "Waiting for XRDP to listen on 3389..."
+          echo "Waiting for XRDP..."
           for i in {1..10}; do
             if netstat -ant | grep -q ":3389 .* LISTEN"; then
               echo "âœ… XRDP is listening!"
@@ -93,9 +110,9 @@ jobs:
           echo "$CURRENT_USER:CloudRDP2026!" | sudo chpasswd
           echo "root:CloudRDP2026!" | sudo chpasswd
           
-          echo "--- [4/4] Diagnostic Check ---"
+          echo "--- [4/4] Final Diagnostic ---"
           sudo systemctl status xrdp --no-pager | grep "Active:"
-          echo "CloudRDP: Xvnc Setup Complete."
+          echo "CloudRDP: Nuclear Xvnc Setup Complete."
           
           
           
@@ -150,11 +167,11 @@ jobs:
           echo "------------------------------------------"
           echo "TMATE SSH: $TMATE_SSH"
           echo "COMMAND: ssh -L 3390:localhost:3389 $TMATE_SSH"
-          echo "REPORTING TO: https://big-dots-punch.loca.lt"
+          echo "REPORTING TO: https://wide-lemons-shine.loca.lt"
           echo "------------------------------------------"
           
           # Report back to Fleet Automator
-          REPORT_URL="https://big-dots-punch.loca.lt/instance/328c81df-40ac-4ac6-ba8f-15f9d1065c52/report"
+          REPORT_URL="https://wide-lemons-shine.loca.lt/instance/b8a04f51-03ed-4090-bb4a-58a02304fb17/report"
           echo "Reporting to $REPORT_URL..."
           
           # Use -f to fail on HTTP errors, and capture output for validation
