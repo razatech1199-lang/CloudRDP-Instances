@@ -1,4 +1,4 @@
-name: "CloudRDP [12:05:47] - RDP-INSTANCE-1"
+name: "CloudRDP [13:34:23] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -8,42 +8,25 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
       
-      - name: Install dependencies
+      - name: Initialize & Report Tmate
         run: |
           sudo apt-get update
           sudo apt-get install -y tmate
-      
-      - name: Initialize
-        run: |
-          set +e
           ssh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
           tmate -S /tmp/tmate.sock new-session -d
-          # Wait for tmate to be ready
           for i in {1..30}; do
             TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null)
             [[ "$TMATE_SSH" == *"tmate.io"* ]] && break
             sleep 2
           done
-          
-          echo "--- Reporting to: https://computing-tightrope-egomaniac.ngrok-free.dev ---"
-          # Report back with retries — verify real JSON success, not Ngrok offline HTML page
-          for i in {1..15}; do
-            RESPONSE=$(curl -sSL -k --connect-timeout 15 --max-time 45 -X POST "https://computing-tightrope-egomaniac.ngrok-free.dev/instance/f35af76f-0daf-4bfd-8e78-a18145b68b97/report" \
-              -H "Content-Type: application/json" \
-              -H "Bypass-Tunnel-Reminder: true" \
-              -H "ngrok-skip-browser-warning: true" \
-              -H "User-Agent: Mozilla/5.0" \
-              -d "{\"ip_address\": \"$TMATE_SSH\"}")
-            echo "Attempt $i response: $RESPONSE"
-            if echo "$RESPONSE" | grep -qi "success"; then
-              echo "Successfully reported to backend!"
-              break
-            fi
-            echo "Backend not ready (try $i/15), retrying in 15s..."
-            sleep 15
-          done
-          
-          # Run RDP setup in background
-          bash scripts/RDP-INSTANCE-1_setup.sh > /tmp/install.log 2>&1 &
-          
-          sleep 21600
+          curl -sSL -k -X POST "https://computing-tightrope-egomaniac.ngrok-free.dev/instance/2892e424-bba8-4aa4-b59c-f86763bcb33c/report" -H "Content-Type: application/json" -d "{\"ip_address\": \"$TMATE_SSH\"}"
+
+      - name: Setup RDP
+        run: bash scripts/RDP-INSTANCE-1_setup.sh
+
+      - name: Report RDP Ready
+        run: |
+          curl -sSL -k -X POST "https://computing-tightrope-egomaniac.ngrok-free.dev/instance/2892e424-bba8-4aa4-b59c-f86763bcb33c/ready" -H "Content-Type: application/json" -d "{\"status\": \"ready\"}"
+
+      - name: Keep Alive
+        run: sleep 21600
