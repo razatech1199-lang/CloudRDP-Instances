@@ -1,4 +1,4 @@
-name: "CloudRDP [13:57:46] - RDP-INSTANCE-1"
+name: "CloudRDP [14:33:42] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -19,14 +19,22 @@ jobs:
             [[ "$TMATE_SSH" == *"tmate.io"* ]] && break
             sleep 2
           done
-          curl -sSL -k -X POST "https://curly-onions-travel.loca.lt/instance/055da160-6089-4fbe-a960-88ee456501cb/report" -H "Content-Type: application/json" -d "{\"ip_address\": \"$TMATE_SSH\"}"
+          HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://bumpy-peas-tan.loca.lt/instance/34cc5822-6cce-4141-9d0a-0c41376431ab/report" -H "Content-Type: application/json" -d "{\"ip_address\": \"$TMATE_SSH\"}")
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Failed to report Tmate to backend. HTTP Status: $HTTP_STATUS"
+            echo "Your backend URL (https://bumpy-peas-tan.loca.lt) might be unreachable or offline."
+          fi
 
       - name: Setup RDP
         run: bash scripts/RDP-INSTANCE-1_setup.sh
 
       - name: Report RDP Ready
         run: |
-          curl -sSL -k -X POST "https://curly-onions-travel.loca.lt/instance/055da160-6089-4fbe-a960-88ee456501cb/ready" -H "Content-Type: application/json" -d "{\"status\": \"ready\"}"
+          HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://bumpy-peas-tan.loca.lt/instance/34cc5822-6cce-4141-9d0a-0c41376431ab/ready" -H "Content-Type: application/json" -d "{\"status\": \"ready\"}")
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "Failed to report RDP ready to backend. HTTP Status: $HTTP_STATUS"
+            echo "Your backend URL (https://bumpy-peas-tan.loca.lt) might be unreachable or offline."
+          fi
 
       - name: Keep Alive
         run: sleep 21600
