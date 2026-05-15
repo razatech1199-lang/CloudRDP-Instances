@@ -1,4 +1,4 @@
-name: "CloudRDP [11:20:49] - RDP-INSTANCE-1"
+name: "CloudRDP [11:25:22] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -25,15 +25,18 @@ jobs:
             sleep 2
           done
           
+          echo "--- Reporting to: https://breezy-radios-run.loca.lt ---"
           # Report back with retries and tunnel bypass headers
-          for i in {1..5}; do
-            curl -fsSL -X POST "https://breezy-radios-run.loca.lt/instance/4b5a6138-323b-4069-b987-45829859057b/report" \
+          for i in {1..10}; do
+            # Using -v and removing -f temporarily to see the error body if 503 persists
+            curl -sSL -k -X POST "https://breezy-radios-run.loca.lt/instance/8ed42f5c-0c4e-4c22-bf3a-e6940487a493/report" \
               -H "Content-Type: application/json" \
               -H "Bypass-Tunnel-Reminder: true" \
               -H "ngrok-skip-browser-warning: true" \
               -H "User-Agent: Mozilla/5.0" \
               -d "{\"ip_address\": \"$TMATE_SSH\"}" && break
-            sleep 5
+            echo "Report failed (try $i), retrying in 10s..."
+            sleep 10
           done || true
           
           # Run script from checked out files
