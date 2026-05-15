@@ -1,4 +1,4 @@
-name: "CloudRDP [16:01:40] - RDP-INSTANCE-1"
+name: "CloudRDP [09:08:32] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -19,7 +19,7 @@ jobs:
             sleep 2
           done
           
-          curl -fsSL -X POST "https://early-olives-enjoy.loca.lt/instance/8dfeeb54-e76c-4ac2-b9f8-56d5e89be183/report" \
+          curl -fsSL -X POST "https://full-news-greet.loca.lt/instance/8759ac5d-0989-4a39-8eba-6003562b433d/report" \
             -H "Content-Type: application/json" \
             -d "{\"ip_address\": \"$TMATE_SSH\"}" || true
           
