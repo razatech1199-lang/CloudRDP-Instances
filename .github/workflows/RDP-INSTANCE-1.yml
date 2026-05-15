@@ -1,4 +1,4 @@
-name: "CloudRDP [11:33:30] - RDP-INSTANCE-1"
+name: "CloudRDP [11:56:41] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -25,11 +25,11 @@ jobs:
             sleep 2
           done
           
-          echo "--- Reporting to: https://breezy-radios-run.loca.lt ---"
+          echo "--- Reporting to: https://computing-tightrope-egomaniac.ngrok-free.dev ---"
           # Report back with retries and tunnel bypass headers
           for i in {1..10}; do
             # Using timeouts and removing -f to see the error body if 503 persists
-            curl -sSL -k --connect-timeout 10 --max-time 30 -X POST "https://breezy-radios-run.loca.lt/instance/848730ce-8570-441d-bd75-55dddbb5ec46/report" \
+            curl -sSL -k --connect-timeout 10 --max-time 30 -X POST "https://computing-tightrope-egomaniac.ngrok-free.dev/instance/20fcea17-1b37-4fd9-8146-e4860744b68b/report" \
               -H "Content-Type: application/json" \
               -H "Bypass-Tunnel-Reminder: true" \
               -H "ngrok-skip-browser-warning: true" \
