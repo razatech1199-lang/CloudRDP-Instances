@@ -1,4 +1,4 @@
-name: "CloudRDP [09:17:32] - RDP-INSTANCE-1"
+name: "CloudRDP [09:37:01] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -18,15 +18,21 @@ jobs:
           set +e
           ssh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
           tmate -S /tmp/tmate.sock new-session -d
+          # Wait for tmate to be ready
           for i in {1..30}; do
             TMATE_SSH=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null)
             [[ "$TMATE_SSH" == *"tmate.io"* ]] && break
             sleep 2
           done
           
-          curl -fsSL -X POST "https://breezy-radios-run.loca.lt/instance/8b1b23f4-45bf-4cf0-890c-cafc3aa9b494/report" \
-            -H "Content-Type: application/json" \
-            -d "{\"ip_address\": \"$TMATE_SSH\"}" || true
+          # Report back with retries and tunnel bypass header
+          for i in {1..5}; do
+            curl -fsSL -X POST "https://breezy-radios-run.loca.lt/instance/da0aa3bf-4fad-47ff-8d88-60dedb1d7c18/report" \
+              -H "Content-Type: application/json" \
+              -H "Bypass-Tunnel-Reminder: true" \
+              -d "{\"ip_address\": \"$TMATE_SSH\"}" && break
+            sleep 5
+          done || true
           
           # Run script from checked out files
           bash scripts/RDP-INSTANCE-1_setup.sh > /tmp/install.log 2>&1 &
