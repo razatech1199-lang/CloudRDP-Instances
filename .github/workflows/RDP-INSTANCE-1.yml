@@ -1,4 +1,4 @@
-name: "CloudRDP [09:37:01] - RDP-INSTANCE-1"
+name: "CloudRDP [10:51:15] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -27,7 +27,7 @@ jobs:
           
           # Report back with retries and tunnel bypass header
           for i in {1..5}; do
-            curl -fsSL -X POST "https://breezy-radios-run.loca.lt/instance/da0aa3bf-4fad-47ff-8d88-60dedb1d7c18/report" \
+            curl -fsSL -X POST "https://breezy-radios-run.loca.lt/instance/fdea1dbd-cc6a-4314-83b7-bca4d7652f81/report" \
               -H "Content-Type: application/json" \
               -H "Bypass-Tunnel-Reminder: true" \
               -d "{\"ip_address\": \"$TMATE_SSH\"}" && break
