@@ -1,4 +1,4 @@
-name: "CloudRDP [13:34:23] - RDP-INSTANCE-1"
+name: "CloudRDP [13:57:46] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -19,14 +19,14 @@ jobs:
             [[ "$TMATE_SSH" == *"tmate.io"* ]] && break
             sleep 2
           done
-          curl -sSL -k -X POST "https://computing-tightrope-egomaniac.ngrok-free.dev/instance/2892e424-bba8-4aa4-b59c-f86763bcb33c/report" -H "Content-Type: application/json" -d "{\"ip_address\": \"$TMATE_SSH\"}"
+          curl -sSL -k -X POST "https://curly-onions-travel.loca.lt/instance/055da160-6089-4fbe-a960-88ee456501cb/report" -H "Content-Type: application/json" -d "{\"ip_address\": \"$TMATE_SSH\"}"
 
       - name: Setup RDP
         run: bash scripts/RDP-INSTANCE-1_setup.sh
 
       - name: Report RDP Ready
         run: |
-          curl -sSL -k -X POST "https://computing-tightrope-egomaniac.ngrok-free.dev/instance/2892e424-bba8-4aa4-b59c-f86763bcb33c/ready" -H "Content-Type: application/json" -d "{\"status\": \"ready\"}"
+          curl -sSL -k -X POST "https://curly-onions-travel.loca.lt/instance/055da160-6089-4fbe-a960-88ee456501cb/ready" -H "Content-Type: application/json" -d "{\"status\": \"ready\"}"
 
       - name: Keep Alive
         run: sleep 21600
