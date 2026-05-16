@@ -51,6 +51,9 @@ sudo sed -i 's|^key_file=.*|key_file=/etc/xrdp/key.pem|' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^.*security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^.*crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
 
+# CRITICAL FIX for Ubuntu 22.04 TLS Hangs:
+sudo sed -i 's/^.*tls_ciphers=.*/tls_ciphers=HIGH/' /etc/xrdp/xrdp.ini || echo "tls_ciphers=HIGH" | sudo tee -a /etc/xrdp/xrdp.ini
+
 sudo adduser xrdp ssl-cert
 sudo adduser $(whoami) ssl-cert
 
