@@ -7,7 +7,7 @@ echo "--- [1/4] Fast-Track Installation ---"
 sudo apt-get update -qy
 # Use --no-install-recommends to speed up installation by 50%
 # Remove xfce4-goodies (too large, not needed)
-sudo apt-get install -y --no-install-recommends xfce4 xrdp tightvncserver tmate dbus-x11
+sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp tightvncserver tmate dbus-x11
 
 # Configure User Session
 USER_HOME=$(eval echo "~$(whoami)")
@@ -36,12 +36,17 @@ sudo chmod +x /etc/xrdp/startwm.sh
 # PATCHING (Fast & Safe)
 sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/sesman.ini
 sudo sed -i 's|^certificate=.*|certificate=/etc/xrdp/cert.pem|' /etc/xrdp/xrdp.ini
 sudo sed -i 's|^key_file=.*|key_file=/etc/xrdp/key.pem|' /etc/xrdp/xrdp.ini
 sudo sed -i '/\[Xorg\]/,/^\[/ s/^/#/' /etc/xrdp/xrdp.ini
 
 # Permissions
+touch /home/$(whoami)/.Xauthority 2>/dev/null || true
+sudo chown $(whoami):$(whoami) /home/$(whoami)/.Xauthority 2>/dev/null || true
 sudo adduser xrdp ssl-cert 2>/dev/null || true
+sudo adduser $(whoami) ssl-cert 2>/dev/null || true
 
 # Finalizing Services (With robust fallback)
 sudo systemctl enable xrdp
