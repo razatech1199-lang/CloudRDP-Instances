@@ -1,14 +1,16 @@
-echo "--- [1/3] Installing GUI, VNC & Clipboard Helpers ---"
+echo "--- [1/3] Installing Core GUI & RDP ---"
 export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update -qy
 sudo apt-get install -y xrdp xfce4 xfce4-goodies tightvncserver dbus-x11 autocutsel
 
-echo "--- [2/3] Enabling Root RDP Access ---"
+echo "--- [2/3] Configuring Root Access ---"
 # Set root password
 echo "root:1Pakistan@143" | sudo chpasswd
 
-# Enable root login in XRDP
+# Enable root login and optimize XRDP (AFTER INSTALL)
 sudo sed -i 's/AllowRootLogin=false/AllowRootLogin=true/g' /etc/xrdp/sesman.ini
+sudo sed -i 's/^security_layer=.*/security_layer=rdp/g' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^crypt_level=.*/crypt_level=low/g' /etc/xrdp/xrdp.ini
 
 # Setup desktop session for root
 cat << 'EOF' | sudo tee /root/.xsession > /dev/null
@@ -19,13 +21,13 @@ exec dbus-launch --exit-with-session startxfce4
 EOF
 sudo chmod +x /root/.xsession
 
-# Restore default system login rules (Root needs simple auth)
-sudo apt-get install -y --reinstall xrdp
-
-echo "--- [3/3] Finalizing Services ---"
+echo "--- [3/3] Restarting Services ---"
 sudo systemctl enable xrdp
 sudo systemctl restart xrdp
 sudo systemctl restart xrdp-sesman
+
+# Verification: Show AllowRootLogin status in logs
+grep "AllowRootLogin" /etc/xrdp/sesman.ini
 
 echo "--- [4/4] Starting Tunnel ---"
 wget -q https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
