@@ -20,10 +20,9 @@ chown $(whoami):$(whoami) $USER_HOME/.xsession
 
 # Use default startwm.sh which safely delegates to /etc/X11/Xsession
 
-# PATCHING: Force standard RDP security layer (Disables NLA) with High Encryption.
-# This prevents Windows RDP from throwing "Internal Error" when tunneling over localhost SSH,
-# and forces the connection to instantly show the native Linux XRDP graphical login screen!
-sudo sed -i 's/^.*security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
+# PATCHING: Use TLS/NLA (negotiate) because modern Windows RDP strictly enforces it over localhost.
+# With the native startwm.sh restored, NLA will pass and successfully boot XFCE4.
+sudo sed -i 's/^.*security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^.*crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/sesman.ini
