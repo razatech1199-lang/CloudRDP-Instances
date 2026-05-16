@@ -7,7 +7,7 @@ echo "--- [1/4] Fast-Track Installation ---"
 sudo apt-get update -qy
 # Use --no-install-recommends to speed up installation by 50%
 # Remove xfce4-goodies (too large, not needed)
-sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp xorgxrdp tmate dbus-x11
+sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp xorgxrdp tmate dbus-x11 x11-xserver-utils tigervnc-standalone-server
 
 # Configure User Session
 USER_HOME=$(eval echo "~$(whoami)")
@@ -15,9 +15,11 @@ echo "exec dbus-launch --exit-with-session startxfce4" > $USER_HOME/.xsession
 chmod +x $USER_HOME/.xsession
 chown $(whoami):$(whoami) $USER_HOME/.xsession
 
-# Generate certificates
+# Certificates are not needed for pure RDP over SSH, but we keep them just in case
 sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
-sudo chown xrdp:xrdp /etc/xrdp/key.pem /etc/xrdp/cert.pem
+sudo chmod 644 /etc/xrdp/cert.pem
+sudo chmod 640 /etc/xrdp/key.pem
+sudo chown root:xrdp /etc/xrdp/key.pem
 
 # CRITICAL: Robust startwm.sh
 sudo tee /etc/xrdp/startwm.sh <<EOF
@@ -33,13 +35,16 @@ exec dbus-launch --exit-with-session /usr/bin/startxfce4
 EOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
-# PATCHING (Fast & Safe)
-sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
-sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
+# PATCHING (Fast & Safe) - Disable TLS/NLA since we are over an encrypted SSH tunnel!
+sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^crypt_level=.*/crypt_level=none/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/sesman.ini
 sudo sed -i 's|^certificate=.*|certificate=/etc/xrdp/cert.pem|' /etc/xrdp/xrdp.ini
 sudo sed -i 's|^key_file=.*|key_file=/etc/xrdp/key.pem|' /etc/xrdp/xrdp.ini
+
+# Ensure X server can be started by any user
+sudo sed -i 's/allowed_users=console/allowed_users=anybody/' /etc/X11/Xwrapper.config || echo "allowed_users=anybody" | sudo tee /etc/X11/Xwrapper.config > /dev/null
 
 # Polkit fix for color manager hang
 sudo mkdir -p /etc/polkit-1/localauthority/50-local.d
