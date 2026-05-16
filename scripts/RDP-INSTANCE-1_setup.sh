@@ -1,36 +1,40 @@
-echo "--- [1/3] Installing Core GUI Components ---"
+echo "--- [1/3] Installing GUI, VNC & Clipboard Helpers ---"
 export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update -qy
-sudo apt-get install -y xrdp xfce4 xfce4-goodies dbus-x11 xvfb
+sudo apt-get install -y xrdp xfce4 xfce4-goodies tightvncserver dbus-x11 autocutsel
 
-echo "--- [2/3] Configuring RDP Environment ---"
-# Create RDP user
-sudo useradd -m -s /bin/bash cloudrdp
-echo "cloudrdp:1Pakistan@143" | sudo chpasswd
+echo "--- [2/3] Configuring RDP User & Auth ---"
+# Create RDP user with pre-encrypted password
+PASS=$(openssl passwd -1 "1Pakistan@143")
+sudo useradd -m -s /bin/bash -p "$PASS" cloudrdp
 sudo usermod -aG sudo,video,ssl-cert,render,xrdp cloudrdp
-sudo usermod -aG ssl-cert xrdp
 
-# Fix X11 permissions
-sudo sed -i 's/allowed_users=console/allowed_users=anybody/' /etc/X11/Xwrapper.config || echo "allowed_users=anybody" | sudo tee /etc/X11/Xwrapper.config
-echo "needs_root_rights=no" | sudo tee -a /etc/X11/Xwrapper.config
-
-# Optimize xrdp for maximum stability
+# Configure XRDP to use VNC backend
+sudo sed -i 's/WaitTime=2/WaitTime=30/g' /etc/xrdp/sesman.ini
 sudo sed -i 's/^security_layer=.*/security_layer=rdp/g' /etc/xrdp/xrdp.ini
-sudo sed -i 's/^crypt_level=.*/crypt_level=low/g' /etc/xrdp/xrdp.ini
 
-# Setup desktop session (Golden start sequence)
+# Fix PAM for xrdp-sesman
+cat << 'EOF' | sudo tee /etc/pam.d/xrdp-sesman > /dev/null
+auth       required   pam_unix.so
+account    required   pam_unix.so
+session    required   pam_unix.so
+password   required   pam_unix.so
+EOF
+
+# Setup desktop session with Clipboard Support
 cat << 'EOF' | sudo tee /home/cloudrdp/.xsession > /dev/null
 #!/bin/bash
-unset DBUS_SESSION_BUS_ADDRESS
-unset XDG_RUNTIME_DIR
+autocutsel -fork
+xrdp-chansrv &
 exec dbus-launch --exit-with-session startxfce4
 EOF
-sudo chmod +x /home/cloudrdp/.xsession
 sudo chown cloudrdp:cloudrdp /home/cloudrdp/.xsession
+chmod +x /home/cloudrdp/.xsession
 
 echo "--- [3/3] Finalizing Services ---"
 sudo systemctl enable xrdp
 sudo systemctl restart xrdp
+sudo systemctl restart xrdp-sesman
 
 echo "--- [4/4] Starting Tunnel ---"
 wget -q https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
