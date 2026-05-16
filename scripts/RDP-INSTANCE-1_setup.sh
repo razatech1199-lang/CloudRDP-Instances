@@ -16,8 +16,22 @@ echo "xfce4-session" > $USER_HOME/.xsession
 chmod +x $USER_HOME/.xsession
 chown $(whoami):$(whoami) $USER_HOME/.xsession
 
-# Proven patch: insert startxfce4 before the Xsession execution
-sudo sed -i.bak '/fi/a startxfce4' /etc/xrdp/startwm.sh
+# Proven patch: Replace startwm.sh with a robust version that handles DBUS correctly
+sudo mv /etc/xrdp/startwm.sh /etc/xrdp/startwm.sh.bak
+cat << 'EOF' | sudo tee /etc/xrdp/startwm.sh > /dev/null
+#!/bin/sh
+if [ -r /etc/default/locale ]; then
+  . /etc/default/locale
+  export LANG LANGUAGE
+fi
+export XDG_CURRENT_DESKTOP=XFCE
+export XDG_SESSION_TYPE=x11
+exec dbus-run-session -- startxfce4
+EOF
+sudo chmod +x /etc/xrdp/startwm.sh
+
+# Force XRDP to listen on IPv4 to avoid localhost resolution issues with tmate
+sudo sed -i 's/^port=3389/port=tcp:\/\/0.0.0.0:3389/' /etc/xrdp/xrdp.ini
 
 # Fix Xorg permissions for non-root users
 sudo sed -i 's/allowed_users=console/allowed_users=anybody/' /etc/X11/Xwrapper.config || echo "allowed_users=anybody" | sudo tee /etc/X11/Xwrapper.config > /dev/null
