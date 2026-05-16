@@ -3,33 +3,27 @@ export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update -qy
 sudo apt-get install -y xrdp xfce4 xfce4-goodies tightvncserver dbus-x11 autocutsel
 
-echo "--- [2/3] Configuring RDP User & Auth ---"
-# Create RDP user with pre-encrypted password
-PASS=$(openssl passwd -1 "1Pakistan@143")
-sudo useradd -m -s /bin/bash -p "$PASS" cloudrdp
-sudo usermod -aG sudo,video,ssl-cert,render,xrdp cloudrdp
+echo "--- [2/3] Configuring Native Runner User ---"
+# Set password for the native 'runner' user
+echo "runner:1Pakistan@143" | sudo chpasswd
+sudo usermod -aG sudo,video,ssl-cert,render,xrdp runner
 
-# Configure XRDP to use VNC backend
-sudo sed -i 's/WaitTime=2/WaitTime=30/g' /etc/xrdp/sesman.ini
-sudo sed -i 's/^security_layer=.*/security_layer=rdp/g' /etc/xrdp/xrdp.ini
-
-# Fix PAM for xrdp-sesman
-cat << 'EOF' | sudo tee /etc/pam.d/xrdp-sesman > /dev/null
-auth       required   pam_unix.so
-account    required   pam_unix.so
-session    required   pam_unix.so
-password   required   pam_unix.so
-EOF
-
-# Setup desktop session with Clipboard Support
-cat << 'EOF' | sudo tee /home/cloudrdp/.xsession > /dev/null
+# Setup desktop session for 'runner'
+USER_HOME="/home/runner"
+cat << 'EOF' | sudo tee $USER_HOME/.xsession > /dev/null
 #!/bin/bash
 autocutsel -fork
 xrdp-chansrv &
 exec dbus-launch --exit-with-session startxfce4
 EOF
-sudo chown cloudrdp:cloudrdp /home/cloudrdp/.xsession
-chmod +x /home/cloudrdp/.xsession
+sudo chown runner:runner $USER_HOME/.xsession
+chmod +x $USER_HOME/.xsession
+
+# Ensure XRDP can read the session
+sudo cp $USER_HOME/.xsession /etc/skel/.xsession
+
+# Restore default PAM (it works better for the native user)
+sudo apt-get install -y --reinstall xrdp
 
 echo "--- [3/3] Finalizing Services ---"
 sudo systemctl enable xrdp
