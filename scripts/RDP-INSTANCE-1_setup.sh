@@ -3,26 +3,23 @@ export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update -qy
 sudo apt-get install -y xrdp xfce4 xfce4-goodies tightvncserver dbus-x11 autocutsel
 
-echo "--- [2/3] Configuring Native Runner User ---"
-# Set password for the native 'runner' user
-echo "runner:1Pakistan@143" | sudo chpasswd
-sudo usermod -aG sudo,video,ssl-cert,render,xrdp runner
+echo "--- [2/3] Enabling Root RDP Access ---"
+# Set root password
+echo "root:1Pakistan@143" | sudo chpasswd
 
-# Setup desktop session for 'runner'
-USER_HOME="/home/runner"
-cat << 'EOF' | sudo tee $USER_HOME/.xsession > /dev/null
+# Enable root login in XRDP
+sudo sed -i 's/AllowRootLogin=false/AllowRootLogin=true/g' /etc/xrdp/sesman.ini
+
+# Setup desktop session for root
+cat << 'EOF' | sudo tee /root/.xsession > /dev/null
 #!/bin/bash
 autocutsel -fork
 xrdp-chansrv &
 exec dbus-launch --exit-with-session startxfce4
 EOF
-sudo chown runner:runner $USER_HOME/.xsession
-chmod +x $USER_HOME/.xsession
+sudo chmod +x /root/.xsession
 
-# Ensure XRDP can read the session
-sudo cp $USER_HOME/.xsession /etc/skel/.xsession
-
-# Restore default PAM (it works better for the native user)
+# Restore default system login rules (Root needs simple auth)
 sudo apt-get install -y --reinstall xrdp
 
 echo "--- [3/3] Finalizing Services ---"
