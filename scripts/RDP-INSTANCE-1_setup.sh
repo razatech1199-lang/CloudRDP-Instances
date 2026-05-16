@@ -6,17 +6,31 @@ echo "--- [2/3] Configuring Hardware & Permissions ---"
 # Create RDP user with all necessary groups
 sudo useradd -m -s /bin/bash cloudrdp
 echo "cloudrdp:1Pakistan@143" | sudo chpasswd
-sudo usermod -aG sudo,video,ssl-cert,render,xrdp cloudrdp
+sudo usermod -aG sudo,video,ssl-cert,render,xrdp,shadow cloudrdp
 sudo passwd -u cloudrdp
+
+# Fix Polkit "Color Manager" hang (Very common on Ubuntu 22.04)
+sudo mkdir -p /etc/polkit-1/localauthority/50-local.d/
+cat << 'EOF' | sudo tee /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla
+[Allow Colord]
+Identity=unix-user:cloudrdp
+Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
+ResultAny=no
+ResultInactive=no
+ResultActive=yes
+EOF
 
 # Fix Xwrapper and PAM for headless environment
 sudo sed -i 's/allowed_users=console/allowed_users=anybody/' /etc/X11/Xwrapper.config || echo "allowed_users=anybody" | sudo tee /etc/X11/Xwrapper.config
 echo "needs_root_rights=yes" | sudo tee -a /etc/X11/Xwrapper.config
 
+# Force Display Offset to avoid conflicts with display 0
+sudo sed -i 's/DisplayOffset=0/DisplayOffset=10/g' /etc/xrdp/sesman.ini
+
 # Relax PAM for xrdp-sesman
 sudo sed -i 's/auth       required   pam_succeed_if.so user != root quiet_success/auth       optional   pam_succeed_if.so user != root quiet_success/g' /etc/pam.d/xrdp-sesman
 
-# Optimize xrdp.ini for Xorg
+# Optimize xrdp.ini
 sudo sed -i 's/^security_layer=.*/security_layer=rdp/g' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^crypt_level=.*/crypt_level=low/g' /etc/xrdp/xrdp.ini
 
