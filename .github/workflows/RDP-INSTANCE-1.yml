@@ -1,4 +1,4 @@
-name: "CloudRDP [14:27:33] - RDP-INSTANCE-1"
+name: "CloudRDP [14:29:40] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -10,18 +10,20 @@ jobs:
       
       - name: Initialize & Report Tunnel (Bore)
         run: |
-          # Download Bore binary
-          curl -L https://github.com/ekoneko/bore/releases/latest/download/bore-v0.5.2-x86_64-unknown-linux-musl.tar.gz | tar -xz
-          sudo mv bore /usr/local/bin/
+          # Download Bore binary (Fixed Version)
+          wget https://github.com/ekoneko/bore/releases/download/v0.5.2/bore-v0.5.2-x86_64-unknown-linux-musl.tar.gz
+          tar -xf bore-v0.5.2-x86_64-unknown-linux-musl.tar.gz
+          chmod +x bore
           
           # Start Bore tunnel in background
-          nohup bore local 3389 --to bore.pub > bore.log 2>&1 &
+          touch bore.log
+          nohup ./bore local 3389 --to bore.pub > bore.log 2>&1 &
           
           # Wait for the tunnel to establish and extract the address
           for i in {1..20}; do
             TUNNEL_URL=$(grep -oE "bore.pub:[0-9]+" bore.log | head -n 1)
             if [ ! -z "$TUNNEL_URL" ]; then break; fi
-            sleep 2
+            sleep 3
           done
           
           if [ -z "$TUNNEL_URL" ]; then
@@ -34,7 +36,7 @@ jobs:
           echo "Public RDP Address: $TUNNEL_URL"
           
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://violet-books-divide.loca.lt/instance/6a897416-8041-47f8-aa00-a4398d1b19b1/report" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"ip_address\": \"$TUNNEL_URL\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://dirty-pillows-cheer.loca.lt/instance/f5701d7b-3742-419f-9579-60db3b623069/report" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"ip_address\": \"$TUNNEL_URL\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
@@ -45,7 +47,7 @@ jobs:
       - name: Report RDP Ready
         run: |
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://violet-books-divide.loca.lt/instance/6a897416-8041-47f8-aa00-a4398d1b19b1/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://dirty-pillows-cheer.loca.lt/instance/f5701d7b-3742-419f-9579-60db3b623069/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
