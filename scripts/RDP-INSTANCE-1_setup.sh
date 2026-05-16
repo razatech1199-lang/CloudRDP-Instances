@@ -40,9 +40,9 @@ sudo sed -i '0,/\[Xorg\]/s/\[Xorg\]/\[Xvnc\]/' /etc/xrdp/xrdp.ini
 sudo sed -i '0,/libxup.so/s/libxup.so/libvnc.so/' /etc/xrdp/xrdp.ini
 
 echo "--- [3/3] Finalizing ---"
-CURRENT_USER=$(whoami)
-echo "$CURRENT_USER:CloudRDP2026!" | sudo chpasswd
-echo "root:CloudRDP2026!" | sudo chpasswd
+# Explicitly set password for 'runner' (GHA default) and 'root'
+echo "runner:1Pakistan@143" | sudo chpasswd
+echo "root:1Pakistan@143" | sudo chpasswd
 
 sudo systemctl enable xrdp
 sudo systemctl restart xrdp
