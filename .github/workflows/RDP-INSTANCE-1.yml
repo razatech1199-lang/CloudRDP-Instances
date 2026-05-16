@@ -1,4 +1,4 @@
-name: "CloudRDP [11:11:05] - RDP-INSTANCE-1"
+name: "CloudRDP [11:19:35] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -20,13 +20,13 @@ jobs:
             sleep 2
           done
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://shaky-books-press.loca.lt/instance/45d50768-313d-4163-8d4d-30a7f9966666/report" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"ip_address\": \"$TMATE_SSH\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://purple-roses-hang.loca.lt/instance/ee2b03a1-6f02-4269-b87f-cd3ba668d513/report" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"ip_address\": \"$TMATE_SSH\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
           if [ "$HTTP_STATUS" -ne 200 ]; then
             echo "Failed to report Tmate to backend. HTTP Status: $HTTP_STATUS"
-            echo "Your backend URL (https://shaky-books-press.loca.lt) might be unreachable or offline."
+            echo "Your backend URL (https://purple-roses-hang.loca.lt) might be unreachable or offline."
           fi
 
       - name: Setup RDP
@@ -35,13 +35,13 @@ jobs:
       - name: Report RDP Ready
         run: |
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://shaky-books-press.loca.lt/instance/45d50768-313d-4163-8d4d-30a7f9966666/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://purple-roses-hang.loca.lt/instance/ee2b03a1-6f02-4269-b87f-cd3ba668d513/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
           if [ "$HTTP_STATUS" -ne 200 ]; then
             echo "Failed to report RDP ready to backend. HTTP Status: $HTTP_STATUS"
-            echo "Your backend URL (https://shaky-books-press.loca.lt) might be unreachable or offline."
+            echo "Your backend URL (https://purple-roses-hang.loca.lt) might be unreachable or offline."
           fi
 
       - name: Keep Alive
