@@ -1,4 +1,4 @@
-name: "CloudRDP [15:50:38] - RDP-INSTANCE-1"
+name: "CloudRDP [15:54:44] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -10,14 +10,14 @@ jobs:
       
       - name: Setup RDP
         run: |
-          export BACKEND_URL="https://dry-dots-roll.loca.lt"
-          export INSTANCE_ID="fcb164ba-56df-4138-ba9e-7e2521f1b190"
+          export BACKEND_URL="https://eleven-animals-bow.loca.lt"
+          export INSTANCE_ID="6cb3534e-f1a5-4e50-be15-da9ab90e7e25"
           bash scripts/RDP-INSTANCE-1_setup.sh
 
       - name: Report RDP Ready
         run: |
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://dry-dots-roll.loca.lt/instance/fcb164ba-56df-4138-ba9e-7e2521f1b190/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://eleven-animals-bow.loca.lt/instance/6cb3534e-f1a5-4e50-be15-da9ab90e7e25/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
