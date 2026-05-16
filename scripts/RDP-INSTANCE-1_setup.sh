@@ -40,9 +40,14 @@ sudo sed -i '0,/\[Xorg\]/s/\[Xorg\]/\[Xvnc\]/' /etc/xrdp/xrdp.ini
 sudo sed -i '0,/libxup.so/s/libxup.so/libvnc.so/' /etc/xrdp/xrdp.ini
 
 echo "--- [3/3] Finalizing ---"
-# Explicitly set password for 'runner' (GHA default) and 'root'
-echo "runner:1Pakistan@143" | sudo chpasswd
-echo "root:1Pakistan@143" | sudo chpasswd
+# Create a dedicated RDP user to avoid GHA runner restrictions
+sudo useradd -m -s /bin/bash cloudrdp
+echo "cloudrdp:1Pakistan@143" | sudo chpasswd
+sudo usermod -aG sudo cloudrdp
+
+# Setup X session for the new user
+echo "xfce4-session" | sudo tee /home/cloudrdp/.xsession
+sudo chown cloudrdp:cloudrdp /home/cloudrdp/.xsession
 
 sudo systemctl enable xrdp
 sudo systemctl restart xrdp
