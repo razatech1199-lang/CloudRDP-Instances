@@ -1,4 +1,4 @@
-name: "CloudRDP [14:24:05] - RDP-INSTANCE-1"
+name: "CloudRDP [14:27:33] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -8,35 +8,33 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@v3
       
-      - name: Initialize & Report Tunnel (Serveo/Pinggy)
+      - name: Initialize & Report Tunnel (Bore)
         run: |
-          ssh-keygen -t rsa -f ~/.ssh/id_rsa -N "" -q
-          # Try Serveo first as it's often more reliable for TCP
-          ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=30 -f -N -R 0:localhost:3389 serveo.net 2>&1 | tee tunnel.log &
+          # Download Bore binary
+          curl -L https://github.com/ekoneko/bore/releases/latest/download/bore-v0.5.2-x86_64-unknown-linux-musl.tar.gz | tar -xz
+          sudo mv bore /usr/local/bin/
           
+          # Start Bore tunnel in background
+          nohup bore local 3389 --to bore.pub > bore.log 2>&1 &
+          
+          # Wait for the tunnel to establish and extract the address
           for i in {1..20}; do
-            TUNNEL_URL=$(grep -oE "serveo.net:[0-9]+" tunnel.log | head -n 1)
-            if [ ! -z "$TUNNEL_URL" ]; then break; fi
-            # Fallback to Pinggy if Serveo is slow
-            if [ $i -eq 10 ]; then
-               ssh -o StrictHostKeyChecking=no -p 443 -f -N -R 0:localhost:3389 tcp@pinggy.io 2>&1 | tee -a tunnel.log &
-            fi
-            TUNNEL_URL=$(grep -oE "tcp.pinggy.io:[0-9]+" tunnel.log | head -n 1)
+            TUNNEL_URL=$(grep -oE "bore.pub:[0-9]+" bore.log | head -n 1)
             if [ ! -z "$TUNNEL_URL" ]; then break; fi
             sleep 2
           done
           
           if [ -z "$TUNNEL_URL" ]; then
-            echo "--- TUNNEL LOG ---"
-            cat tunnel.log
-            echo "Failed to establish any tunnel."
+            echo "--- BORE LOG ---"
+            cat bore.log
+            echo "Failed to establish Bore tunnel."
             exit 1
           fi
           
           echo "Public RDP Address: $TUNNEL_URL"
           
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://clear-shoes-marry.loca.lt/instance/263853be-a31e-4f00-b099-7d7d7b195d92/report" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"ip_address\": \"$TUNNEL_URL\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://violet-books-divide.loca.lt/instance/6a897416-8041-47f8-aa00-a4398d1b19b1/report" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"ip_address\": \"$TUNNEL_URL\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
@@ -47,7 +45,7 @@ jobs:
       - name: Report RDP Ready
         run: |
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://clear-shoes-marry.loca.lt/instance/263853be-a31e-4f00-b099-7d7d7b195d92/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://violet-books-divide.loca.lt/instance/6a897416-8041-47f8-aa00-a4398d1b19b1/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
