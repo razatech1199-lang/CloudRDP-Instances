@@ -11,7 +11,7 @@ sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp tigervn
 
 # Configure User Session
 USER_HOME=$(eval echo "~$(whoami)")
-echo "exec dbus-launch --exit-with-session startxfce4" > $USER_HOME/.xsession
+echo "xfce4-session" > $USER_HOME/.xsession
 chmod +x $USER_HOME/.xsession
 chown $(whoami):$(whoami) $USER_HOME/.xsession
 
@@ -21,19 +21,7 @@ sudo chmod 644 /etc/xrdp/cert.pem
 sudo chmod 640 /etc/xrdp/key.pem
 sudo chown root:xrdp /etc/xrdp/key.pem
 
-# CRITICAL: Robust startwm.sh
-sudo tee /etc/xrdp/startwm.sh <<EOF
-#!/bin/sh
-if [ -r /etc/default/locale ]; then
-  . /etc/default/locale
-  export LANG
-fi
-unset DBUS_SESSION_BUS_ADDRESS
-unset XDG_RUNTIME_DIR
-unset XDG_SESSION_ID
-exec dbus-launch --exit-with-session /usr/bin/startxfce4
-EOF
-sudo chmod +x /etc/xrdp/startwm.sh
+# Use default startwm.sh which safely delegates to /etc/X11/Xsession
 
 # PATCHING (Fast & Safe) - Revert to secure TLS/NLA so modern RDP clients don't reject it
 sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
