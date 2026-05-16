@@ -7,11 +7,11 @@ echo "--- [1/4] Fast-Track Installation ---"
 sudo apt-get update -qy
 # Use --no-install-recommends to speed up installation by 50%
 # Remove xfce4-goodies (too large, not needed)
-sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp tightvncserver tmate dbus-x11
+sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp xorgxrdp tmate dbus-x11
 
 # Configure User Session
 USER_HOME=$(eval echo "~$(whoami)")
-echo "exec startxfce4" > $USER_HOME/.xsession
+echo "exec dbus-launch --exit-with-session startxfce4" > $USER_HOME/.xsession
 chmod +x $USER_HOME/.xsession
 chown $(whoami):$(whoami) $USER_HOME/.xsession
 
@@ -29,7 +29,7 @@ fi
 unset DBUS_SESSION_BUS_ADDRESS
 unset XDG_RUNTIME_DIR
 unset XDG_SESSION_ID
-exec /usr/bin/startxfce4
+exec dbus-launch --exit-with-session /usr/bin/startxfce4
 EOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
@@ -40,7 +40,17 @@ sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/sesman.ini
 sudo sed -i 's|^certificate=.*|certificate=/etc/xrdp/cert.pem|' /etc/xrdp/xrdp.ini
 sudo sed -i 's|^key_file=.*|key_file=/etc/xrdp/key.pem|' /etc/xrdp/xrdp.ini
-sudo sed -i '/\[Xorg\]/,/^\[/ s/^/#/' /etc/xrdp/xrdp.ini
+
+# Polkit fix for color manager hang
+sudo mkdir -p /etc/polkit-1/localauthority/50-local.d
+sudo tee /etc/polkit-1/localauthority/50-local.d/45-allow-colord.pkla > /dev/null <<EOF
+[Allow Colord all Users]
+Identity=unix-user:*
+Action=org.freedesktop.color-manager.create-device;org.freedesktop.color-manager.create-profile;org.freedesktop.color-manager.delete-device;org.freedesktop.color-manager.delete-profile;org.freedesktop.color-manager.modify-device;org.freedesktop.color-manager.modify-profile
+ResultAny=no
+ResultInactive=no
+ResultActive=yes
+EOF
 
 # Permissions
 touch /home/$(whoami)/.Xauthority 2>/dev/null || true
