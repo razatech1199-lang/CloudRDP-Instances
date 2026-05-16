@@ -1,4 +1,4 @@
-name: "CloudRDP [14:43:44] - RDP-INSTANCE-1"
+name: "CloudRDP [14:51:56] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -36,7 +36,7 @@ jobs:
           echo "Public RDP Address: $TUNNEL_URL"
           
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://lazy-gifts-rule.loca.lt/instance/63852160-6e74-47b1-856b-bbaa79dfdc4b/report" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"ip_address\": \"$TUNNEL_URL\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://long-ends-repeat.loca.lt/instance/ebad8d5d-bed0-432d-8abc-da75c82a0c3e/report" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"ip_address\": \"$TUNNEL_URL\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
@@ -47,7 +47,7 @@ jobs:
       - name: Report RDP Ready
         run: |
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://lazy-gifts-rule.loca.lt/instance/63852160-6e74-47b1-856b-bbaa79dfdc4b/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://long-ends-repeat.loca.lt/instance/ebad8d5d-bed0-432d-8abc-da75c82a0c3e/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
