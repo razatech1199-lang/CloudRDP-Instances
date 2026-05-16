@@ -1,4 +1,4 @@
-name: "CloudRDP [14:29:40] - RDP-INSTANCE-1"
+name: "CloudRDP [14:31:17] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -10,9 +10,9 @@ jobs:
       
       - name: Initialize & Report Tunnel (Bore)
         run: |
-          # Download Bore binary (Fixed Version)
-          wget https://github.com/ekoneko/bore/releases/download/v0.5.2/bore-v0.5.2-x86_64-unknown-linux-musl.tar.gz
-          tar -xf bore-v0.5.2-x86_64-unknown-linux-musl.tar.gz
+          # Download Bore binary (Official ekzhang Repo)
+          wget https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
+          tar -xf bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
           chmod +x bore
           
           # Start Bore tunnel in background
@@ -36,7 +36,7 @@ jobs:
           echo "Public RDP Address: $TUNNEL_URL"
           
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://dirty-pillows-cheer.loca.lt/instance/f5701d7b-3742-419f-9579-60db3b623069/report" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"ip_address\": \"$TUNNEL_URL\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://fresh-pots-feel.loca.lt/instance/586cab80-039b-4699-a0ed-8f88a269787b/report" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"ip_address\": \"$TUNNEL_URL\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
@@ -47,7 +47,7 @@ jobs:
       - name: Report RDP Ready
         run: |
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://dirty-pillows-cheer.loca.lt/instance/f5701d7b-3742-419f-9579-60db3b623069/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://fresh-pots-feel.loca.lt/instance/586cab80-039b-4699-a0ed-8f88a269787b/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
