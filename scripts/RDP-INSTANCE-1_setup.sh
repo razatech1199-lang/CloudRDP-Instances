@@ -7,7 +7,7 @@ echo "--- [1/4] Fast-Track Installation ---"
 sudo apt-get update -qy
 # Use --no-install-recommends to speed up installation by 50%
 # Remove xfce4-goodies (too large, not needed)
-sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp tigervnc-standalone-server tmate dbus-x11 x11-xserver-utils
+sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp xorgxrdp tmate dbus-x11 x11-xserver-utils
 
 # Configure User Session
 USER_HOME=$(eval echo "~$(whoami)")
@@ -26,7 +26,6 @@ sudo chown root:xrdp /etc/xrdp/key.pem
 # PATCHING (Fast & Safe) - Revert to secure TLS/NLA so modern RDP clients don't reject it
 sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
-sudo sed -i '/\[Xorg\]/,/^\[/ s/^/#/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/sesman.ini
 sudo sed -i 's|^certificate=.*|certificate=/etc/xrdp/cert.pem|' /etc/xrdp/xrdp.ini
