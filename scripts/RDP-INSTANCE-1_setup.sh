@@ -7,7 +7,7 @@ echo "--- [1/4] Fast-Track Installation ---"
 sudo apt-get update -qy
 # Use --no-install-recommends to speed up installation by 50%
 # Remove xfce4-goodies (too large, not needed)
-sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp xorgxrdp xserver-xorg-core tmate dbus-x11 x11-xserver-utils
+sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp tigervnc-standalone-server tmate dbus-x11 x11-xserver-utils
 
 # Configure User Session
 USER_HOME=$(eval echo "~$(whoami)")
@@ -24,6 +24,10 @@ chown $(whoami):$(whoami) $USER_HOME/.xsession
 # With the native startwm.sh restored, NLA will pass and successfully boot XFCE4.
 sudo sed -i 's/^.*security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^.*crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
+
+# SAFELY remove the [Xorg] section so XRDP defaults to [Xvnc]
+# Xorg silently crashes on headless GitHub Actions runners. Xvnc is 100% software-based and always works.
+sudo awk '/^\[Xorg\]/{f=1} /^\[Xvnc\]/{f=0} !f' /etc/xrdp/xrdp.ini > /tmp/xrdp.ini && sudo mv /tmp/xrdp.ini /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/sesman.ini
 
