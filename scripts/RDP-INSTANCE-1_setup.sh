@@ -15,21 +15,18 @@ echo "xfce4-session" > $USER_HOME/.xsession
 chmod +x $USER_HOME/.xsession
 chown $(whoami):$(whoami) $USER_HOME/.xsession
 
-# Certificates are not needed for pure RDP over SSH, but we keep them just in case
-sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
-sudo chmod 644 /etc/xrdp/cert.pem
-sudo chmod 640 /etc/xrdp/key.pem
-sudo chown root:xrdp /etc/xrdp/key.pem
+# TLS certificates are managed natively by xrdp package (ssl-cert-snakeoil). 
+# We don't need to generate custom ones.
 
 # Use default startwm.sh which safely delegates to /etc/X11/Xsession
 
-# PATCHING (Fast & Safe) - Revert to secure TLS/NLA so modern RDP clients don't reject it
-sudo sed -i 's/^security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
+# PATCHING: Force standard RDP security layer (Disables NLA) with High Encryption.
+# This prevents Windows RDP from throwing "Internal Error" when tunneling over localhost SSH,
+# and forces the connection to instantly show the native Linux XRDP graphical login screen!
+sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/sesman.ini
-sudo sed -i 's|^certificate=.*|certificate=/etc/xrdp/cert.pem|' /etc/xrdp/xrdp.ini
-sudo sed -i 's|^key_file=.*|key_file=/etc/xrdp/key.pem|' /etc/xrdp/xrdp.ini
 
 # Ensure X server can be started by any user
 sudo sed -i 's/allowed_users=console/allowed_users=anybody/' /etc/X11/Xwrapper.config || echo "allowed_users=anybody" | sudo tee /etc/X11/Xwrapper.config > /dev/null
