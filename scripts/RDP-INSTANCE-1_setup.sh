@@ -23,8 +23,8 @@ chown $(whoami):$(whoami) $USER_HOME/.xsession
 # PATCHING: Force standard RDP security layer (Disables NLA) with High Encryption.
 # This prevents Windows RDP from throwing "Internal Error" when tunneling over localhost SSH,
 # and forces the connection to instantly show the native Linux XRDP graphical login screen!
-sudo sed -i 's/^security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
-sudo sed -i 's/^crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^.*security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^.*crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/xrdp.ini
 sudo sed -i 's/^LogLevel=.*/LogLevel=DEBUG/' /etc/xrdp/sesman.ini
 
