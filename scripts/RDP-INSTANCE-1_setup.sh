@@ -27,18 +27,11 @@ CURRENT_USER=$(whoami)
 echo "$CURRENT_USER:CloudRDP2026!" | sudo chpasswd
 echo "root:CloudRDP2026!" | sudo chpasswd
 
-# PROVEN TLS FIX: Prevent "Internal Error" from broken snakeoil certs and OpenSSL bugs
-sudo openssl req -x509 -newkey rsa:2048 -nodes -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem -days 365 -subj "/C=US/ST=NY/L=NY/O=CloudRDP/CN=localhost" 2>/dev/null
-sudo chown root:xrdp /etc/xrdp/key.pem
-sudo chmod 640 /etc/xrdp/key.pem
-sudo chmod 644 /etc/xrdp/cert.pem
+# Disable TLS completely to avoid OpenSSL 3.0 hangs on Ubuntu 22.04
+# The connection is already secured by the SSH tunnel
+sudo sed -i 's/^.*security_layer=.*/security_layer=rdp/' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^.*crypt_level=.*/crypt_level=high/' /etc/xrdp/xrdp.ini
 
-sudo sed -i 's|^certificate=.*|certificate=/etc/xrdp/cert.pem|' /etc/xrdp/xrdp.ini
-sudo sed -i 's|^key_file=.*|key_file=/etc/xrdp/key.pem|' /etc/xrdp/xrdp.ini
-sudo sed -i 's/^.*security_layer=.*/security_layer=negotiate/' /etc/xrdp/xrdp.ini
-sudo sed -i 's/^.*tls_ciphers=.*/tls_ciphers=HIGH/' /etc/xrdp/xrdp.ini || echo "tls_ciphers=HIGH" | sudo tee -a /etc/xrdp/xrdp.ini
-
-sudo adduser xrdp ssl-cert
 sudo systemctl restart xrdp
 sudo systemctl restart xrdp-sesman
 
