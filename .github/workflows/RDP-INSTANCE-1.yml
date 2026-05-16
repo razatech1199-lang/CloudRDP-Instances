@@ -1,4 +1,4 @@
-name: "CloudRDP [16:11:55] - RDP-INSTANCE-1"
+name: "CloudRDP [16:17:02] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -10,14 +10,14 @@ jobs:
       
       - name: Setup RDP
         run: |
-          export BACKEND_URL="https://witty-socks-create.loca.lt"
-          export INSTANCE_ID="4ba5132e-5ebc-440c-8b5f-12827026e70d"
+          export BACKEND_URL="https://tall-crews-make.loca.lt"
+          export INSTANCE_ID="d919c5d6-07b4-48fc-a7ec-4dc595a450a6"
           bash scripts/RDP-INSTANCE-1_setup.sh
 
       - name: Report RDP Ready
         run: |
           for i in {1..3}; do
-            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://witty-socks-create.loca.lt/instance/4ba5132e-5ebc-440c-8b5f-12827026e70d/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
+            HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" -X POST "https://tall-crews-make.loca.lt/instance/d919c5d6-07b4-48fc-a7ec-4dc595a450a6/ready" -H "Content-Type: application/json" -H "Bypass-Tunnel-Reminder: true" -d "{\"status\": \"ready\"}")
             if [ "$HTTP_STATUS" -eq 200 ]; then break; fi
             sleep 3
           done
