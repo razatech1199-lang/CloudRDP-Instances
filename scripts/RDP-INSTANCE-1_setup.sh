@@ -7,11 +7,11 @@ echo "--- [1/4] Fast-Track Installation ---"
 sudo apt-get update -qy
 # Use --no-install-recommends to speed up installation by 50%
 # Remove xfce4-goodies (too large, not needed)
-sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp xorgxrdp tmate dbus-x11 x11-xserver-utils
+sudo apt-get install -y --no-install-recommends xfce4 xfce4-session xrdp xorgxrdp xserver-xorg-core tmate dbus-x11 x11-xserver-utils
 
 # Configure User Session
 USER_HOME=$(eval echo "~$(whoami)")
-echo "xfce4-session" > $USER_HOME/.xsession
+echo "exec dbus-run-session -- startxfce4" > $USER_HOME/.xsession
 chmod +x $USER_HOME/.xsession
 chown $(whoami):$(whoami) $USER_HOME/.xsession
 
