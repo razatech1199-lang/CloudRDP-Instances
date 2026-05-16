@@ -44,13 +44,14 @@ echo "--- [3/3] Finalizing ---"
 sudo useradd -m -s /bin/bash cloudrdp
 echo "cloudrdp:1Pakistan@143" | sudo chpasswd
 sudo usermod -aG sudo,video,ssl-cert,render cloudrdp
+sudo passwd -u cloudrdp
 
 # Fix X11 permissions for headless runners
 sudo sed -i 's/allowed_users=console/allowed_users=anybody/' /etc/X11/Xwrapper.config || echo "allowed_users=anybody" | sudo tee /etc/X11/Xwrapper.config
 echo "needs_root_rights=no" | sudo tee -a /etc/X11/Xwrapper.config
 
-# Setup session for the new user
-echo "startxfce4" | sudo tee /home/cloudrdp/.xsession
+# Setup session for the new user (Crucial: use dbus-launch)
+echo "exec dbus-launch startxfce4" | sudo tee /home/cloudrdp/.xsession
 sudo chown cloudrdp:cloudrdp /home/cloudrdp/.xsession
 
 sudo systemctl enable xrdp
