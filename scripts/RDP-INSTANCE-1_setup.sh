@@ -3,23 +3,29 @@ export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update -qy
 sudo apt-get install -y xrdp xfce4 xfce4-goodies tightvncserver dbus-x11 autocutsel
 
-echo "--- [2/3] Configuring Root Access ---"
-# Set root password
-echo "root:1Pakistan@143" | sudo chpasswd
+echo "--- [2/3] Configuring Diagnostic Session ---"
+# Set password for runner (as a backup)
+echo "runner:1Pakistan@143" | sudo chpasswd
+sudo usermod -aG sudo,video,ssl-cert,render,xrdp runner
 
-# Enable root login and optimize XRDP (AFTER INSTALL)
-sudo sed -i 's/AllowRootLogin=false/AllowRootLogin=true/g' /etc/xrdp/sesman.ini
-sudo sed -i 's/^security_layer=.*/security_layer=rdp/g' /etc/xrdp/xrdp.ini
-sudo sed -i 's/^crypt_level=.*/crypt_level=low/g' /etc/xrdp/xrdp.ini
+# DIAGNOSTIC: Bypass PAM password check for RDP
+cat << 'EOF' | sudo tee /etc/pam.d/xrdp-sesman > /dev/null
+auth       required   pam_permit.so
+account    required   pam_permit.so
+session    required   pam_permit.so
+password   required   pam_permit.so
+EOF
 
-# Setup desktop session for root
-cat << 'EOF' | sudo tee /root/.xsession > /dev/null
+# Setup desktop session for runner
+USER_HOME="/home/runner"
+cat << 'EOF' | sudo tee $USER_HOME/.xsession > /dev/null
 #!/bin/bash
 autocutsel -fork
 xrdp-chansrv &
 exec dbus-launch --exit-with-session startxfce4
 EOF
-sudo chmod +x /root/.xsession
+sudo chown runner:runner $USER_HOME/.xsession
+chmod +x $USER_HOME/.xsession
 
 echo "--- [3/3] Restarting Services ---"
 sudo systemctl enable xrdp
