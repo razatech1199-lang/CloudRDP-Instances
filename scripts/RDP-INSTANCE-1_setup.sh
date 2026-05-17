@@ -42,12 +42,18 @@ PAMEOF
 # ---- [3/5] Configure XRDP & Desktop ----
 echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 
+# Install xserver-xorg-core and xserver-xorg-legacy for robust Xorg backend
+sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
+
 # Rewrite startwm.sh for reliable XFCE startup
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
-#!/bin/sh
+#!/bin/bash
 # CloudRDP startwm.sh — Clean XFCE launch
 unset DBUS_SESSION_BUS_ADDRESS
 unset XDG_RUNTIME_DIR
+
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=XFCE
 
 if [ -r /etc/default/locale ]; then
   . /etc/default/locale
@@ -58,22 +64,26 @@ fi
 autocutsel -fork 2>/dev/null &
 autocutsel -selection PRIMARY -fork 2>/dev/null &
 
-# Launch XFCE with dbus
-exec dbus-launch --exit-with-session startxfce4
+# Launch XFCE
+exec dbus-launch --exit-with-session xfce4-session
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
 # Create .xsession for runner
 sudo tee /home/runner/.xsession > /dev/null << 'XSEOF'
 #!/bin/bash
-# CloudRDP .xsession
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=XFCE
+unset DBUS_SESSION_BUS_ADDRESS
+unset XDG_RUNTIME_DIR
+
 autocutsel -fork 2>/dev/null &
 autocutsel -selection PRIMARY -fork 2>/dev/null &
 xrdp-chansrv 2>/dev/null &
-exec dbus-launch --exit-with-session startxfce4
+exec dbus-launch --exit-with-session xfce4-session
 XSEOF
 sudo chown runner:runner /home/runner/.xsession
-chmod +x /home/runner/.xsession
+sudo chmod +x /home/runner/.xsession
 
 # Polkit fix — prevent "Color Manager" authentication hang
 sudo mkdir -p /etc/polkit-1/localauthority/50-local.d
