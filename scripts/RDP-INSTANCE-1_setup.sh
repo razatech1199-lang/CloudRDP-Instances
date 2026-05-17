@@ -45,37 +45,18 @@ echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 # Install xserver-xorg-core and xserver-xorg-legacy for robust Xorg backend
 sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
 
-# Rewrite startwm.sh for reliable XFCE startup
-sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
-#!/bin/bash
-unset DBUS_SESSION_BUS_ADDRESS
-unset XDG_RUNTIME_DIR
-
-export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=XFCE
-
-if [ -r /etc/default/locale ]; then
-  . /etc/default/locale
-  export LANG LANGUAGE
-fi
-
-# Launch XFCE cleanly
-exec startxfce4
-SWMEOF
-sudo chmod +x /etc/xrdp/startwm.sh
-
-# Create .xsession for runner
+# Rewrite .xsession for runner
 sudo tee /home/runner/.xsession > /dev/null << 'XSEOF'
-#!/bin/bash
-export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=XFCE
-unset DBUS_SESSION_BUS_ADDRESS
-unset XDG_RUNTIME_DIR
-
-exec startxfce4
+xfce4-session
 XSEOF
 sudo chown runner:runner /home/runner/.xsession
 sudo chmod +x /home/runner/.xsession
+
+# Fix the default startwm.sh by inserting startxfce4 right after the locale block
+# This preserves all of Ubuntu's default X11 variables while forcing XFCE.
+if [ -f /etc/xrdp/startwm.sh ]; then
+    sudo sed -i.bak '/fi/a startxfce4\nexit 0' /etc/xrdp/startwm.sh
+fi
 
 # Polkit fix — prevent "Color Manager" authentication hang
 sudo mkdir -p /etc/polkit-1/localauthority/50-local.d
