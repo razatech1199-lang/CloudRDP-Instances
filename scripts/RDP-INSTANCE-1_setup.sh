@@ -48,7 +48,6 @@ sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
 # Rewrite startwm.sh for reliable XFCE startup
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
 #!/bin/bash
-# CloudRDP startwm.sh — Clean XFCE launch
 unset DBUS_SESSION_BUS_ADDRESS
 unset XDG_RUNTIME_DIR
 
@@ -60,12 +59,8 @@ if [ -r /etc/default/locale ]; then
   export LANG LANGUAGE
 fi
 
-# Start clipboard sync daemon
-autocutsel -fork 2>/dev/null &
-autocutsel -selection PRIMARY -fork 2>/dev/null &
-
-# Launch XFCE
-exec dbus-launch --exit-with-session xfce4-session
+# Launch XFCE cleanly
+exec startxfce4
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
@@ -77,10 +72,7 @@ export XDG_CURRENT_DESKTOP=XFCE
 unset DBUS_SESSION_BUS_ADDRESS
 unset XDG_RUNTIME_DIR
 
-autocutsel -fork 2>/dev/null &
-autocutsel -selection PRIMARY -fork 2>/dev/null &
-xrdp-chansrv 2>/dev/null &
-exec dbus-launch --exit-with-session xfce4-session
+exec startxfce4
 XSEOF
 sudo chown runner:runner /home/runner/.xsession
 sudo chmod +x /home/runner/.xsession
