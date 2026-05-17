@@ -132,17 +132,37 @@ grep "AllowRootLogin" /etc/xrdp/sesman.ini || true
 # ---- [5/5] Start Tunnel & Report ----
 echo "--- [5/5] Starting Bore Tunnel ---"
 
+# Disable power management & screensaver to prevent sleep disconnects
+sudo apt-get remove -y xfce4-power-manager xscreensaver light-locker 2>/dev/null || true
+
 wget -q https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
 tar -xf bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
-chmod +x bore
+sudo mv bore /usr/local/bin/
+sudo chmod +x /usr/local/bin/bore
 
-nohup ./bore local 3389 --to bore.pub > bore.log 2>&1 &
-BORE_PID=$!
+# Run bore as a systemd service so GHA doesn't kill it when the step ends
+sudo tee /etc/systemd/system/bore.service > /dev/null << 'BOREEOF'
+[Unit]
+Description=Bore Tunnel
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/bore local 3389 --to bore.pub
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+BOREEOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now bore.service
 sleep 5
 
 TUNNEL_URL=""
 for i in $(seq 1 15); do
-    TUNNEL_URL=$(grep -oE "bore.pub:[0-9]+" bore.log | head -n 1)
+    TUNNEL_URL=$(sudo journalctl -u bore.service -n 50 | grep -oE "bore.pub:[0-9]+" | head -n 1)
     [ ! -z "$TUNNEL_URL" ] && break
     sleep 2
 done
@@ -169,6 +189,6 @@ if [ ! -z "$TUNNEL_URL" ]; then
 else
     echo "❌ Bore tunnel failed to start."
     echo "--- Bore Log ---"
-    cat bore.log 2>/dev/null || echo "(empty)"
+    sudo journalctl -u bore.service --no-pager -n 20 2>/dev/null || echo "(empty)"
     echo "--- End Log ---"
 fi
