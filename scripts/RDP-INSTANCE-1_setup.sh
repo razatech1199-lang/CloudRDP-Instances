@@ -17,9 +17,9 @@ echo "--- [1/5] Installing Core Dependencies ---"
 sudo apt-get update -qy
 sudo apt-get install -y \
   xrdp \
+  xorgxrdp \
   xfce4 xfce4-goodies \
   dbus-x11 \
-  xvfb \
   autocutsel \
   policykit-1 \
   x11-xserver-utils
@@ -47,16 +47,23 @@ sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
 
 # Rewrite .xsession for runner
 sudo tee /home/runner/.xsession > /dev/null << 'XSEOF'
-xfce4-session
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=XFCE
+exec dbus-run-session -- xfce4-session
 XSEOF
 sudo chown runner:runner /home/runner/.xsession
 sudo chmod +x /home/runner/.xsession
 
-# Fix the default startwm.sh by inserting startxfce4 right after the locale block
-# This preserves all of Ubuntu's default X11 variables while forcing XFCE.
-if [ -f /etc/xrdp/startwm.sh ]; then
-    sudo sed -i.bak '/fi/a startxfce4\nexit 0' /etc/xrdp/startwm.sh
+# Fix the default startwm.sh by cleanly executing .xsession
+sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
+#!/bin/sh
+if [ -r /etc/default/locale ]; then
+  . /etc/default/locale
+  export LANG LANGUAGE
 fi
+exec ~/.xsession
+SWMEOF
+sudo chmod +x /etc/xrdp/startwm.sh
 
 # Polkit fix — prevent "Color Manager" authentication hang
 sudo mkdir -p /etc/polkit-1/localauthority/50-local.d
@@ -86,11 +93,6 @@ fi
 
 # ---- [4/5] Start Services ----
 echo "--- [4/5] Starting Services ---"
-
-# Start Xvfb virtual framebuffer on display :10
-Xvfb :10 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset &
-export DISPLAY=:10
-sleep 2
 
 sudo systemctl enable xrdp
 sudo systemctl restart xrdp
