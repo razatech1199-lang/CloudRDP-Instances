@@ -47,21 +47,25 @@ sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
 
 # Rewrite .xsession for runner
 sudo tee /home/runner/.xsession > /dev/null << 'XSEOF'
-export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=XFCE
-exec dbus-run-session -- xfce4-session
+xfce4-session
 XSEOF
 sudo chown runner:runner /home/runner/.xsession
 sudo chmod +x /home/runner/.xsession
 
-# Fix the default startwm.sh by cleanly executing .xsession
+# Fix startwm.sh to prevent DBUS conflicts with GHA runner environment
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
 #!/bin/sh
+unset DBUS_SESSION_BUS_ADDRESS
+unset XDG_RUNTIME_DIR
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=XFCE
+
 if [ -r /etc/default/locale ]; then
   . /etc/default/locale
   export LANG LANGUAGE
 fi
-exec ~/.xsession
+
+exec startxfce4
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
