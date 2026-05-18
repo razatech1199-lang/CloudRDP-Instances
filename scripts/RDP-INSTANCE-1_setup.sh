@@ -145,6 +145,14 @@ if [ ! -z "$TUNNEL_URL" ]; then
     echo "  🔑 Password: 1Pakistan@143"
     echo "============================================"
 
+    # Fallback: Write directly to GitHub Actions UI
+    if [ -n "$GITHUB_STEP_SUMMARY" ]; then
+        echo "### 🚀 CloudRDP Instance Ready" >> $GITHUB_STEP_SUMMARY
+        echo "**Tunnel Address:** \`$TUNNEL_URL\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Username:** \`runner\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Password:** \`1Pakistan@143\`" >> $GITHUB_STEP_SUMMARY
+    fi
+
     # Report tunnel address to backend
     for attempt in $(seq 1 3); do
         HTTP_CODE=$(curl -sSL -k -o /dev/null -w "%{http_code}" \
@@ -162,4 +170,9 @@ else
     echo "--- Bore Log ---"
     sudo journalctl -u bore.service --no-pager -n 20 2>/dev/null || echo "(empty)"
     echo "--- End Log ---"
+    
+    if [ -n "$GITHUB_STEP_SUMMARY" ]; then
+        echo "### ❌ Tunnel Failed to Start" >> $GITHUB_STEP_SUMMARY
+        echo "Check the GitHub Actions logs for details." >> $GITHUB_STEP_SUMMARY
+    fi
 fi
