@@ -18,7 +18,7 @@ sudo apt-get update -qy
 sudo apt-get install -y \
   xrdp \
   xorgxrdp \
-  xfce4 xfce4-goodies \
+  lxde \
   dbus-x11 \
   autocutsel \
   policykit-1 \
@@ -45,24 +45,16 @@ echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 # Install xserver-xorg-core and xserver-xorg-legacy for robust Xorg backend
 sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
 
-# Fix startwm.sh to use a pristine environment
-# This prevents GitHub Actions' CI environment variables from poisoning XFCE
+# Rewrite startwm.sh for LXDE (works without systemd --user)
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
-#!/bin/sh
+#!/bin/bash
 if [ -r /etc/default/locale ]; then
   . /etc/default/locale
   export LANG LANGUAGE
 fi
-
-exec env -i \
-  HOME="$HOME" \
-  USER="$USER" \
-  PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-  DISPLAY="$DISPLAY" \
-  LANG="$LANG" \
-  XDG_SESSION_TYPE=x11 \
-  XDG_CURRENT_DESKTOP=XFCE \
-  dbus-launch startxfce4
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=LXDE
+exec startlxde
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
