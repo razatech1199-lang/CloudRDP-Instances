@@ -46,19 +46,25 @@ echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 # Install xserver-xorg-core and xserver-xorg-legacy for robust Xorg backend
 sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
 
-# Rewrite startwm.sh for XFCE4 (works without systemd --user)
+# Rewrite startwm.sh to use standard X11 init (Crucial for D-Bus/Polkit)
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
-#!/bin/bash
+#!/bin/sh
 unset DBUS_SESSION_BUS_ADDRESS
 unset XDG_RUNTIME_DIR
 if [ -r /etc/default/locale ]; then
   . /etc/default/locale
   export LANG LANGUAGE
 fi
-export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=XFCE
-exec xfce4-session
+test -x /etc/X11/Xsession && exec /etc/X11/Xsession
+exec /bin/sh /etc/X11/Xsession
 SWMEOF
+sudo chmod +x /etc/xrdp/startwm.sh
+
+# Configure the X11 session for the runner user to use XFCE4
+echo "startxfce4" | sudo tee /home/runner/.xsession > /dev/null
+echo "startxfce4" | sudo tee /home/runner/.Xclients > /dev/null
+sudo chown runner:runner /home/runner/.xsession /home/runner/.Xclients
+sudo chmod +x /home/runner/.xsession /home/runner/.Xclients
 sudo chmod +x /etc/xrdp/startwm.sh
 
 # Polkit fix — prevent "Color Manager" authentication hang
