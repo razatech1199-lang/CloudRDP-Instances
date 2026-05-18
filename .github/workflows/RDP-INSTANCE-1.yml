@@ -1,4 +1,4 @@
-name: "CloudRDP [09:25:00] - RDP-INSTANCE-1"
+name: "CloudRDP [09:32:16] - RDP-INSTANCE-1"
 on:
   workflow_dispatch:
 jobs:
@@ -11,15 +11,15 @@ jobs:
 
       - name: Setup RDP Environment
         run: |
-          export BACKEND_URL="https://spotty-tigers-ask.loca.lt"
-          export INSTANCE_ID="31036bbc-a569-47bb-af98-0909ef119bf3"
+          export BACKEND_URL="https://tired-cows-strive.loca.lt"
+          export INSTANCE_ID="5260703a-cbcb-4640-b860-f15d4cc64851"
           bash scripts/RDP-INSTANCE-1_setup.sh
 
       - name: Report RDP Ready
         run: |
           for i in {1..5}; do
             HTTP_STATUS=$(curl -sSL -k -o /dev/null -w "%{http_code}" \
-              -X POST "https://spotty-tigers-ask.loca.lt/instance/31036bbc-a569-47bb-af98-0909ef119bf3/ready" \
+              -X POST "https://tired-cows-strive.loca.lt/instance/5260703a-cbcb-4640-b860-f15d4cc64851/ready" \
               -H "Content-Type: application/json" \
               -H "Bypass-Tunnel-Reminder: true" \
               -d '{"status": "ready"}')
@@ -36,7 +36,7 @@ jobs:
           echo "============================================"
           echo "  CloudRDP Instance Active"
           echo "  Instance: RDP-INSTANCE-1"
-          echo "  ID: 31036bbc-a569-47bb-af98-0909ef119bf3"
+          echo "  ID: 5260703a-cbcb-4640-b860-f15d4cc64851"
           echo "  Session will expire in 6 hours."
           echo "============================================"
           sleep 21600
