@@ -45,21 +45,26 @@ echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 # Install xserver-xorg-core and xserver-xorg-legacy for robust Xorg backend
 sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
 
-# Set up .xsessionrc to prevent DBUS conflicts with GHA runner environment
-sudo tee /home/runner/.xsessionrc > /dev/null << 'XRC'
-unset DBUS_SESSION_BUS_ADDRESS
-unset XDG_RUNTIME_DIR
-export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=XFCE
-XRC
-sudo chown runner:runner /home/runner/.xsessionrc
+# Fix startwm.sh to use a pristine environment
+# This prevents GitHub Actions' CI environment variables from poisoning XFCE
+sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
+#!/bin/sh
+if [ -r /etc/default/locale ]; then
+  . /etc/default/locale
+  export LANG LANGUAGE
+fi
 
-# Tell Xsession to start XFCE
-sudo tee /home/runner/.xsession > /dev/null << 'XSEOF'
-xfce4-session
-XSEOF
-sudo chown runner:runner /home/runner/.xsession
-sudo chmod +x /home/runner/.xsession
+exec env -i \
+  HOME="$HOME" \
+  USER="$USER" \
+  PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+  DISPLAY="$DISPLAY" \
+  LANG="$LANG" \
+  XDG_SESSION_TYPE=x11 \
+  XDG_CURRENT_DESKTOP=XFCE \
+  dbus-launch startxfce4
+SWMEOF
+sudo chmod +x /etc/xrdp/startwm.sh
 
 # Polkit fix — prevent "Color Manager" authentication hang
 sudo mkdir -p /etc/polkit-1/localauthority/50-local.d
