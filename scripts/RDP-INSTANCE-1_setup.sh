@@ -44,7 +44,6 @@ sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
 # Set up standard .xsession for the runner user
 echo "xfce4-session" > /home/runner/.xsession
 chmod +x /home/runner/.xsession
-sudo chown runner:runner /home/runner/.xsession
 
 # Rewrite startwm.sh to use standard X11 init
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
