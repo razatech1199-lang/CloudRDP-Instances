@@ -32,8 +32,14 @@ echo "--- [2/5] Configuring User & Authentication ---"
 echo "runner:1Pakistan@143" | sudo chpasswd
 sudo usermod -aG sudo,video,ssl-cert,render,xrdp runner 2>/dev/null || true
 
-# Standard PAM will be used since we set a password for the runner user.
-# Bypassing PAM breaks systemd-logind, which causes XFCE4 to hang.
+# Partial PAM Bypass: Skip broken GHA auth, but KEEP standard session setup!
+# This allows XRDP to log in, while giving XFCE4 the valid session it needs to not hang.
+sudo tee /etc/pam.d/xrdp-sesman > /dev/null << 'PAMEOF'
+auth       required   pam_permit.so
+account    required   pam_permit.so
+password   required   pam_permit.so
+@include common-session
+PAMEOF
 
 # ---- [3/5] Configure XRDP & Desktop ----
 echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
