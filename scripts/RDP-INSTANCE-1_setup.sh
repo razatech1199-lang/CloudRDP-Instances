@@ -18,8 +18,7 @@ sudo apt-get update -qy
 sudo apt-get install -y \
   xrdp \
   xorgxrdp \
-  xfce4 \
-  xfce4-goodies \
+  lxde \
   dbus-x11 \
   autocutsel \
   policykit-1 \
@@ -32,13 +31,13 @@ echo "--- [2/5] Configuring User & Authentication ---"
 echo "runner:1Pakistan@143" | sudo chpasswd
 sudo usermod -aG sudo,video,ssl-cert,render,xrdp runner 2>/dev/null || true
 
-# Partial PAM Bypass: Skip broken GHA auth, but KEEP standard session setup!
-# This allows XRDP to log in, while giving XFCE4 the valid session it needs to not hang.
+# FULL PAM Bypass: GHA runners lack systemd-logind.
+# Standard PAM crashes the session, and XFCE4 hangs. We MUST use pam_permit and LXDE!
 sudo tee /etc/pam.d/xrdp-sesman > /dev/null << 'PAMEOF'
 auth       required   pam_permit.so
 account    required   pam_permit.so
+session    required   pam_permit.so
 password   required   pam_permit.so
-@include common-session
 PAMEOF
 
 # ---- [3/5] Configure XRDP & Desktop ----
@@ -47,13 +46,9 @@ echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 # Install xserver-xorg-core and xserver-xorg-legacy for robust Xorg backend
 sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
 
-# Set up standard .xsession for the runner user
-echo "xfce4-session" > /home/runner/.xsession
-chmod +x /home/runner/.xsession
-
-# Rewrite startwm.sh to use standard X11 init
+# Rewrite startwm.sh for LXDE (Works safely without systemd-logind)
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
-#!/bin/sh
+#!/bin/bash
 unset DBUS_SESSION_BUS_ADDRESS
 unset XDG_RUNTIME_DIR
 unset SESSION_MANAGER
@@ -61,8 +56,9 @@ if [ -r /etc/default/locale ]; then
   . /etc/default/locale
   export LANG LANGUAGE
 fi
-test -x /etc/X11/Xsession && exec /etc/X11/Xsession
-exec /bin/sh /etc/X11/Xsession
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=LXDE
+exec dbus-launch --exit-with-session startlxde
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
