@@ -57,7 +57,7 @@ if [ -r /etc/default/locale ]; then
 fi
 export XDG_SESSION_TYPE=x11
 export XDG_CURRENT_DESKTOP=XFCE
-exec dbus-run-session startxfce4
+exec xfce4-session
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
