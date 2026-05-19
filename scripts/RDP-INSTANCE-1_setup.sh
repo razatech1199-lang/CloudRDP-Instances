@@ -51,17 +51,30 @@ sudo apt-get install -y tightvncserver
 sudo su - runner -c "echo 'startxfce4' > ~/.xsession"
 
 # Rewrite startwm.sh to isolate the session from GitHub Actions environment variables.
-# GHA variables often cause X11/dbus crashes, so we strip them using 'env -i'.
+# We explicitly unset polluting vars instead of 'env -i' which strips too much (causing blank screens).
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
-#!/bin/sh
+#!/bin/bash
+unset DBUS_SESSION_BUS_ADDRESS
+unset XDG_RUNTIME_DIR
+unset SESSION_MANAGER
+unset GITHUB_ENV
+unset GITHUB_PATH
+unset GITHUB_WORKSPACE
+unset GITHUB_STEP_SUMMARY
+unset GITHUB_STATE
+unset GITHUB_OUTPUT
+unset RUNNER_TRACKING_ID
+
 if [ -r /etc/default/locale ]; then
   . /etc/default/locale
   export LANG LANGUAGE
 fi
+
 export XDG_SESSION_TYPE=x11
 export XDG_CURRENT_DESKTOP=XFCE
-# Run standard Xsession with a completely clean environment
-exec env -i HOME="$HOME" USER="$USER" LOGNAME="$LOGNAME" PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" DISPLAY="$DISPLAY" LANG="$LANG" /etc/X11/Xsession
+export DESKTOP_SESSION=xfce
+
+exec dbus-launch --exit-with-session startxfce4
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
