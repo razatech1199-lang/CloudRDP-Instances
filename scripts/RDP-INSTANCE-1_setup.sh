@@ -17,7 +17,7 @@ echo "--- [1/5] Installing Core Dependencies ---"
 sudo apt-get update -qy
 sudo apt-get install -y \
   xrdp \
-  xorgxrdp \
+  tightvncserver \
   lxde \
   dbus-x11 \
   autocutsel \
@@ -43,8 +43,8 @@ PAMEOF
 # ---- [3/5] Configure XRDP & Desktop ----
 echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 
-# Install xserver-xorg-core and xserver-xorg-legacy for robust Xorg backend
-sudo apt-get install -y xserver-xorg-core xserver-xorg-legacy
+# Install tightvncserver for software rendering (bypasses hardware DRM crashes)
+sudo apt-get install -y tightvncserver
 
 # Rewrite startwm.sh for LXDE (Works safely without systemd-logind)
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
