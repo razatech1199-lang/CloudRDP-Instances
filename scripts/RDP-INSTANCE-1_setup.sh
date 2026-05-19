@@ -18,7 +18,8 @@ sudo apt-get update -qy
 sudo apt-get install -y \
   xrdp \
   tightvncserver \
-  lxde \
+  xfce4 \
+  xfce4-terminal \
   dbus-x11 \
   autocutsel \
   policykit-1 \
@@ -46,19 +47,21 @@ echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 # Install tightvncserver for software rendering (bypasses hardware DRM crashes)
 sudo apt-get install -y tightvncserver
 
-# Rewrite startwm.sh for LXDE (Works safely without systemd-logind)
+# Set up XFCE4 for the runner user
+sudo su - runner -c "echo 'startxfce4' > ~/.xsession"
+
+# Rewrite startwm.sh to isolate the session from GitHub Actions environment variables.
+# GHA variables often cause X11/dbus crashes, so we strip them using 'env -i'.
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
-#!/bin/bash
-unset DBUS_SESSION_BUS_ADDRESS
-unset XDG_RUNTIME_DIR
-unset SESSION_MANAGER
+#!/bin/sh
 if [ -r /etc/default/locale ]; then
   . /etc/default/locale
   export LANG LANGUAGE
 fi
 export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=LXDE
-exec dbus-launch --exit-with-session startlxde
+export XDG_CURRENT_DESKTOP=XFCE
+# Run standard Xsession with a completely clean environment
+exec env -i HOME="$HOME" USER="$USER" LOGNAME="$LOGNAME" PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" DISPLAY="$DISPLAY" LANG="$LANG" /etc/X11/Xsession
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
