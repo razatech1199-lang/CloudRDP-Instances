@@ -17,6 +17,7 @@ echo "--- [1/5] Installing Core Dependencies ---"
 sudo apt-get update -qy
 sudo apt-get install -y \
   xrdp \
+  xorgxrdp \
   tightvncserver \
   xfce4 \
   xfce4-terminal \
@@ -48,7 +49,7 @@ echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 sudo apt-get install -y tightvncserver
 
 # Set up XFCE4 for the runner user
-sudo su - runner -c "echo 'startxfce4' > ~/.xsession"
+sudo su - runner -c "echo 'xfce4-session' > ~/.xsession"
 
 # Rewrite startwm.sh to isolate the session from GitHub Actions environment variables.
 # We explicitly unset polluting vars instead of 'env -i' which strips too much (causing blank screens).
@@ -74,7 +75,7 @@ export XDG_SESSION_TYPE=x11
 export XDG_CURRENT_DESKTOP=XFCE
 export DESKTOP_SESSION=xfce
 
-exec dbus-launch --exit-with-session startxfce4
+exec dbus-launch --exit-with-session xfce4-session
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 
