@@ -49,7 +49,7 @@ echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 sudo apt-get install -y tightvncserver
 
 # Set up XFCE4 for the runner user
-sudo su - runner -c "echo 'xfce4-session' > ~/.xsession"
+sudo su - runner -c "echo 'startxfce4' > ~/.xsession"
 
 # Rewrite startwm.sh to isolate the session from GitHub Actions environment variables.
 # We explicitly unset polluting vars instead of 'env -i' which strips too much (causing blank screens).
@@ -75,9 +75,13 @@ export XDG_SESSION_TYPE=x11
 export XDG_CURRENT_DESKTOP=XFCE
 export DESKTOP_SESSION=xfce
 
-exec dbus-launch --exit-with-session xfce4-session
+exec dbus-launch --exit-with-session startxfce4
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
+# Configure XRDP idle timeout to never disconnect
+sudo sed -i 's/^IdleTimeLimit=.*/IdleTimeLimit=0/' /etc/xrdp/sesman.ini || echo 'IdleTimeLimit=0' >> /etc/xrdp/sesman.ini
+sudo sed -i 's/^KillDisconnected=.*/KillDisconnected=false/' /etc/xrdp/sesman.ini || echo 'KillDisconnected=false' >> /etc/xrdp/sesman.ini
+sudo systemctl restart xrdp
 
 # Polkit fix — prevent "Color Manager" authentication hang
 sudo mkdir -p /etc/polkit-1/localauthority/50-local.d
