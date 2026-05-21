@@ -112,10 +112,10 @@ fi
 # ---- [4/5] Start Services ----
 echo "--- [4/5] Starting Services ---"
 
-# XRDP services are intentionally not started to avoid launching RDP
-# sudo systemctl enable xrdp
-# sudo systemctl restart xrdp
-# sudo systemctl restart xrdp-sesman
+# XRDP services will be started
+sudo systemctl enable xrdp
+sudo systemctl restart xrdp
+sudo systemctl restart xrdp-sesman
 sleep 3
 
 # Verify
