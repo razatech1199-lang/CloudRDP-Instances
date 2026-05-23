@@ -185,21 +185,19 @@ sudo grep '^\[' /etc/xrdp/xrdp.ini
 echo "--- [4/5] Starting Services ---"
 
 # Start a tightvncserver on display :0 (port 5900) as runner user.
-# This enables the vnc-any session to connect via 127.0.0.1:5900.
-# Without this, vnc-any shows a blank IP field and can't connect.
+# NOTE: tightvncserver max password length = 8 chars. Use 'CloudRDP' (8 chars).
+# If you use 'CloudRDP2026!' it is silently truncated to 'CloudRDP'.
 sudo su - runner -c "mkdir -p ~/.vnc"
-# Set VNC password (8-char max for tightvncserver)
-echo "CloudRDP2026!" | sudo su - runner -c "vncpasswd -f > ~/.vnc/passwd && chmod 600 ~/.vnc/passwd" 2>/dev/null || \
-  sudo su - runner -c "printf 'CloudRDP2026!\nCloudRDP2026!\nn\n' | vncpasswd" 2>/dev/null || true
+
+# Set VNC password using printf | vncpasswd -f (non-interactive, works on all versions)
+printf 'CloudRDP\nCloudRDP\n' | sudo su - runner -c "vncpasswd" 2>/dev/null || \
+  printf 'CloudRDP' | sudo su - runner -c "vncpasswd -f > ~/.vnc/passwd && chmod 600 ~/.vnc/passwd" 2>/dev/null || true
 
 # Kill any stale VNC servers first
-sudo su - runner -c "tightvncserver -kill :0 2>/dev/null || true; tightvncserver -kill :1 2>/dev/null || true"
+sudo su - runner -c "tightvncserver -kill :0 2>/dev/null; tightvncserver -kill :1 2>/dev/null" 2>/dev/null || true
+sleep 1
 
-# Start VNC server on :0 (port 5900) with LXDE
-sudo su - runner -c "export XDG_RUNTIME_DIR=/run/user/1001; tightvncserver :0 -geometry 1280x800 -depth 24 -dpi 96 2>&1" || \
-sudo su - runner -c "export XDG_RUNTIME_DIR=/run/user/1001; tightvncserver :1 -geometry 1280x800 -depth 24 -dpi 96 2>&1" || true
-
-# Write LXDE startup for VNC sessions
+# Write LXDE startup BEFORE starting VNC (so it's used on first launch)
 sudo su - runner -c "cat > ~/.vnc/xstartup << 'VNCEOF'
 #!/bin/bash
 unset SESSION_MANAGER
@@ -214,8 +212,14 @@ exec dbus-launch --exit-with-session startlxde
 VNCEOF
 chmod +x ~/.vnc/xstartup"
 
+# Start VNC server on :0 (port 5900)
+sudo su - runner -c "export XDG_RUNTIME_DIR=/run/user/1001; tightvncserver :0 -geometry 1280x800 -depth 24 -dpi 96" 2>&1 || \
+sudo su - runner -c "export XDG_RUNTIME_DIR=/run/user/1001; tightvncserver :1 -geometry 1280x800 -depth 24 -dpi 96" 2>&1 || true
+
 sleep 2
-echo "  VNC Display :0 (port 5900) — $(sudo su - runner -c 'ls ~/.vnc/*.pid 2>/dev/null && echo running || echo not started')"
+VNC_STATUS=$(sudo su - runner -c 'ls ~/.vnc/*.pid 2>/dev/null | head -1' && echo 'running' || echo 'not started')
+echo "  VNC Display :0 (port 5900) — ${VNC_STATUS}"
+echo "  VNC Password: CloudRDP  (8 chars, tightvncserver limit)"
 
 # Start XRDP services
 sudo systemctl enable xrdp
