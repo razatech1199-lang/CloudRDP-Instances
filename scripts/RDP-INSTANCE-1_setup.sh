@@ -149,16 +149,20 @@ if [ ! -f /etc/xrdp/cert.pem ]; then
     -days 365 -subj "/CN=CloudRDP" 2>/dev/null
 fi
 
-# Fix xrdp.ini: comment out [Xorg], update vnc-any defaults, add clean [Xvnc] section
+# Fix xrdp.ini: comment out [Xorg], set Xvnc as default, add clean [Xvnc] section
 # Using sed + tee (reliable) instead of Python heredoc (can fail silently in GHA)
 
-# 1. Comment out the [Xorg] section to prevent Xorg from being used
-sudo sed -i '/^\[Xorg\]/,/^\[/{/^\[Xorg\]/!{/^\[/!s/^/# /}}' /etc/xrdp/xrdp.ini
+# 1. Comment out [Xorg] section header AND its contents
+sudo sed -i 's/^\[Xorg\]/# [Xorg]/' /etc/xrdp/xrdp.ini
+sudo sed -i '/^# \[Xorg\]/,/^\[/{/^\[/!s/^/#X /}' /etc/xrdp/xrdp.ini
 
-# 2. Remove any existing [Xvnc] section
-sudo sed -i '/^\[Xvnc\]/,/^\[/{/^\[Xvnc\]/,/^\[/{/^\[Xvnc\]/d;/^\[/!d}}' /etc/xrdp/xrdp.ini
+# 2. Remove any existing [Xvnc] section so we rewrite it clean
+sudo sed -i '/^\[Xvnc\]/,/^\[/{/^\[Xvnc\]/d;/^\[/!d}' /etc/xrdp/xrdp.ini
 
-# 3. Append a clean, explicit [Xvnc] section at the end
+# 3. Set Xvnc as the default session in [Globals]
+sudo sed -i 's/^autorun=.*/autorun=Xvnc/' /etc/xrdp/xrdp.ini || true
+
+# 4. Append a clean, explicit [Xvnc] section at the end
 sudo tee -a /etc/xrdp/xrdp.ini > /dev/null << 'XVNCEOF'
 
 [Xvnc]
@@ -171,12 +175,11 @@ port=-1
 delay_ms=2000
 XVNCEOF
 
-echo "  xrdp.ini sessions after fix:"
-sudo grep '^\[' /etc/xrdp/xrdp.ini
-
-# 4. Also update [vnc-any] defaults so it auto-points to localhost:5900
-# This makes vnc-any work instantly without manual IP entry
+# 5. Pre-fill vnc-any to point to local VNC server (port 5900)
 sudo sed -i '/^\[vnc-any\]/,/^\[/{s/^ip=.*/ip=127.0.0.1/;s/^port=.*/port=5900/}' /etc/xrdp/xrdp.ini || true
+
+echo "  xrdp.ini sections after fix:"
+sudo grep '^\[' /etc/xrdp/xrdp.ini
 
 # ---- [4/5] Start Services ----
 echo "--- [4/5] Starting Services ---"
