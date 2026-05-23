@@ -30,7 +30,7 @@ sudo apt-get install -y \
 echo "--- [2/5] Configuring User & Authentication ---"
 
 # Use the native 'runner' user (trusted by GHA)
-echo "runner:1Pakistan@143" | sudo chpasswd
+echo "runner:CloudRDP2026!" | sudo chpasswd
 sudo usermod -aG sudo,video,ssl-cert,render,xrdp runner 2>/dev/null || true
 
 # FULL PAM Bypass: GHA runners lack systemd-logind.
@@ -165,7 +165,7 @@ if [ ! -z "$TUNNEL_URL" ]; then
     echo "============================================"
     echo "  ✅ Tunnel Active: $TUNNEL_URL"
     echo "  👤 Username: runner"
-    echo "  🔑 Password: 1Pakistan@143"
+    echo "  🔑 Password: CloudRDP2026!"
     echo "============================================"
 
     # Fallback: Write directly to GitHub Actions UI
@@ -173,7 +173,7 @@ if [ ! -z "$TUNNEL_URL" ]; then
         echo "### 🚀 CloudRDP Instance Ready" >> $GITHUB_STEP_SUMMARY
         echo "**Tunnel Address:** \`$TUNNEL_URL\`" >> $GITHUB_STEP_SUMMARY
         echo "**Username:** \`runner\`" >> $GITHUB_STEP_SUMMARY
-        echo "**Password:** \`1Pakistan@143\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Password:** \`CloudRDP2026!\`" >> $GITHUB_STEP_SUMMARY
     fi
 
     # Report tunnel address to backend
