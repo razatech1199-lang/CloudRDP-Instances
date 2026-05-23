@@ -212,13 +212,35 @@ exec dbus-launch --exit-with-session startlxde
 VNCEOF
 chmod +x ~/.vnc/xstartup"
 
-# Start VNC server on :0 (port 5900)
-sudo su - runner -c "export XDG_RUNTIME_DIR=/run/user/1001; tightvncserver :0 -geometry 1280x800 -depth 24 -dpi 96" 2>&1 || \
-sudo su - runner -c "export XDG_RUNTIME_DIR=/run/user/1001; tightvncserver :1 -geometry 1280x800 -depth 24 -dpi 96" 2>&1 || true
+# Run tightvncserver as a systemd service so GHA process killer doesn't terminate it
+sudo tee /etc/systemd/system/vncserver.service > /dev/null << 'VNCSERVICEEOF'
+[Unit]
+Description=TightVNC Server
+After=network.target
 
-sleep 2
-VNC_STATUS=$(sudo su - runner -c 'ls ~/.vnc/*.pid 2>/dev/null | head -1' && echo 'running' || echo 'not started')
-echo "  VNC Display :0 (port 5900) — ${VNC_STATUS}"
+[Service]
+Type=forking
+User=runner
+Group=runner
+WorkingDirectory=/home/runner
+Environment=USER=runner
+Environment=XDG_RUNTIME_DIR=/run/user/1001
+ExecStartPre=-/usr/bin/tightvncserver -kill :0
+ExecStart=/usr/bin/tightvncserver :0 -geometry 1280x800 -depth 24 -dpi 96
+ExecStop=/usr/bin/tightvncserver -kill :0
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+VNCSERVICEEOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now vncserver.service
+sleep 3
+
+VNC_STATUS=$(sudo systemctl is-active vncserver.service || echo 'not started')
+echo "  VNC Service Status — ${VNC_STATUS}"
 echo "  VNC Password: CloudRDP  (8 chars, tightvncserver limit)"
 
 # Start XRDP services
