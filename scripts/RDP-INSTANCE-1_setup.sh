@@ -19,8 +19,8 @@ sudo apt-get install -y \
   xrdp \
   xorgxrdp \
   tightvncserver \
-  xfce4 \
-  xfce4-terminal \
+  lxde-core \
+  lxterminal \
   dbus-x11 \
   autocutsel \
   policykit-1 \
@@ -48,8 +48,8 @@ echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 # Install tightvncserver for software rendering (bypasses hardware DRM crashes)
 sudo apt-get install -y tightvncserver
 
-# Set up XFCE4 for the runner user
-sudo su - runner -c "echo 'startxfce4' > ~/.xsession"
+# Set up LXDE for the runner user
+sudo su - runner -c "echo 'startlxde' > ~/.xsession"
 
 # Rewrite startwm.sh to isolate the session from GitHub Actions environment variables.
 # We explicitly unset polluting vars instead of 'env -i' which strips too much (causing blank screens).
@@ -72,10 +72,10 @@ if [ -r /etc/default/locale ]; then
 fi
 
 export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=XFCE
-export DESKTOP_SESSION=xfce
+export XDG_CURRENT_DESKTOP=LXDE
+export DESKTOP_SESSION=LXDE
 
-exec dbus-launch --exit-with-session startxfce4
+exec dbus-launch --exit-with-session startlxde
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 # Configure XRDP idle timeout to never disconnect
