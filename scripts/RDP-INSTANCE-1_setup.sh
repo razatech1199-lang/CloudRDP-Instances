@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================================
-# CloudRDP Production Setup Script v3.0
+# CloudRDP Production Setup Script v4.0
 # Proven for Ubuntu 22.04 GitHub Actions Runners
-# Uses: Xvfb + XFCE4 + PAM Bypass + Polkit Fix + Bore Tunnel
+# Uses: Xvnc + LXDE + PAM Bypass + Polkit Fix + Bore Tunnel
 # ============================================================
 
 set -euo pipefail
@@ -19,13 +19,24 @@ sudo apt-get install -y \
   xrdp \
   xorgxrdp \
   xserver-xorg-legacy \
+  tigervnc-standalone-server \
+  tigervnc-common \
   tightvncserver \
+  lxde \
   lxde-core \
+  lxde-common \
+  lxsession \
+  lxpanel \
   lxterminal \
+  pcmanfm \
   dbus-x11 \
+  at-spi2-core \
   autocutsel \
   policykit-1 \
-  x11-xserver-utils
+  x11-xserver-utils \
+  xfonts-base \
+  xfonts-75dpi \
+  xfonts-100dpi
 
 # ---- [2/5] Configure User & Auth ----
 echo "--- [2/5] Configuring User & Authentication ---"
@@ -35,27 +46,44 @@ echo "runner:CloudRDP2026!" | sudo chpasswd
 sudo usermod -aG sudo,video,ssl-cert,render,xrdp runner 2>/dev/null || true
 
 # FULL PAM Bypass: GHA runners lack systemd-logind.
-# Standard PAM crashes the session, and XFCE4 hangs. We MUST use pam_permit and LXDE!
+# Standard PAM crashes the session. We MUST use pam_permit with LXDE!
 sudo tee /etc/pam.d/xrdp-sesman > /dev/null << 'PAMEOF'
 auth       required   pam_permit.so
 account    required   pam_permit.so
+session    optional   pam_systemd.so
 session    required   pam_permit.so
 password   required   pam_permit.so
 PAMEOF
 
+# Create XDG_RUNTIME_DIR for runner (required by dbus/polkit/lxsession)
+# Without this, the session manager exits immediately with "Failed to connect to socket"
+sudo mkdir -p /run/user/1001
+sudo chown runner:runner /run/user/1001
+sudo chmod 700 /run/user/1001
+
 # ---- [3/5] Configure XRDP & Desktop ----
 echo "--- [3/5] Configuring XRDP & Desktop Environment ---"
 
-# Install tightvncserver for software rendering (bypasses hardware DRM crashes)
-sudo apt-get install -y tightvncserver
-
-# Set up LXDE for the runner user
-sudo su - runner -c "echo 'startlxde' > ~/.xsession"
+# Set up LXDE session for the runner user.
+# Must use 'exec' so the X session lives as long as lxde-session does.
+# Without exec, the .xsession script exits and xrdp terminates the session.
+sudo su - runner -c "cat > ~/.xsession << 'XSEOF'
+#!/bin/bash
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=LXDE
+export DESKTOP_SESSION=LXDE
+export XDG_RUNTIME_DIR=/run/user/\$(id -u)
+mkdir -p \${XDG_RUNTIME_DIR}
+chmod 700 \${XDG_RUNTIME_DIR}
+exec dbus-launch --exit-with-session startlxde
+XSEOF
+chmod +x ~/.xsession"
 
 # Rewrite startwm.sh to isolate the session from GitHub Actions environment variables.
-# We explicitly unset polluting vars instead of 'env -i' which strips too much (causing blank screens).
+# Key: We set XDG_RUNTIME_DIR before launching so lxsession/dbus can find its socket.
 sudo tee /etc/xrdp/startwm.sh > /dev/null << 'SWMEOF'
 #!/bin/bash
+# Unset GHA-specific variables that pollute the desktop session
 unset DBUS_SESSION_BUS_ADDRESS
 unset XDG_RUNTIME_DIR
 unset SESSION_MANAGER
@@ -66,17 +94,27 @@ unset GITHUB_STEP_SUMMARY
 unset GITHUB_STATE
 unset GITHUB_OUTPUT
 unset RUNNER_TRACKING_ID
+unset GITHUB_ACTION
+unset GITHUB_ACTIONS
 
 if [ -r /etc/default/locale ]; then
   . /etc/default/locale
   export LANG LANGUAGE
 fi
 
+# Set up runtime dir — required for dbus socket and lxsession
+export XDG_RUNTIME_DIR=/run/user/$(id -u)
+mkdir -p "${XDG_RUNTIME_DIR}"
+chmod 700 "${XDG_RUNTIME_DIR}"
+
 export XDG_SESSION_TYPE=x11
 export XDG_CURRENT_DESKTOP=LXDE
 export DESKTOP_SESSION=LXDE
 
-exec dbus-launch --exit-with-session startlxde
+# Source lxde environment if present
+[ -f /etc/X11/Xsession.d/60x11-common_localhost ] && . /etc/X11/Xsession.d/60x11-common_localhost || true
+
+exec startlxde
 SWMEOF
 sudo chmod +x /etc/xrdp/startwm.sh
 # Configure XRDP idle timeout to never disconnect
@@ -111,6 +149,44 @@ if [ ! -f /etc/xrdp/cert.pem ]; then
     -days 365 -subj "/CN=CloudRDP" 2>/dev/null
 fi
 
+# Rewrite xrdp.ini: comment out [Xorg] block and ensure a clean [Xvnc] section exists.
+# This is the most reliable way to force Xvnc backend in headless/VM environments.
+sudo python3 -c "
+import re
+with open('/etc/xrdp/xrdp.ini', 'r') as f:
+    content = f.read()
+
+# Comment out [Xorg] section entirely
+def comment_block(match):
+    block = match.group(0)
+    return '\n'.join(('# ' + line) if line.strip() and not line.startswith('#') else line for line in block.split('\n'))
+
+content = re.sub(r'(?ms)^\[Xorg\].*?(?=^\[|\Z)', comment_block, content)
+
+# Remove any existing [Xvnc] section so we can rewrite it cleanly
+content = re.sub(r'(?ms)^\[Xvnc\].*?(?=^\[|\Z)', '', content)
+
+# Append a clean, explicit Xvnc section
+xvnc_section = '''
+[Xvnc]
+name=Xvnc
+lib=libvnc.so
+username=ask
+password=ask
+ip=127.0.0.1
+port=-1
+delay_ms=2000
+#
+# Parameter for Xvnc
+#
+#xvnc_opt=-SecurityTypes None
+'''
+content = content.rstrip() + '\n' + xvnc_section
+
+with open('/etc/xrdp/xrdp.ini', 'w') as f:
+    f.write(content)
+"
+
 # ---- [4/5] Start Services ----
 echo "--- [4/5] Starting Services ---"
 
@@ -130,6 +206,11 @@ echo "--- [5/5] Starting Bore Tunnel ---"
 
 # Disable power management & screensaver to prevent sleep disconnects
 sudo apt-get remove -y xfce4-power-manager xscreensaver light-locker 2>/dev/null || true
+
+# Make the XDG_RUNTIME_DIR persistent across the session lifecycle
+# This is a systemd tmpfiles rule so the dir is always present
+echo 'd /run/user/1001 0700 runner runner -' | sudo tee /etc/tmpfiles.d/runner-runtime.conf > /dev/null
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/runner-runtime.conf 2>/dev/null || true
 
 wget -q https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
 tar -xf bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
