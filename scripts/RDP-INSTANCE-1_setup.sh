@@ -149,25 +149,18 @@ if [ ! -f /etc/xrdp/cert.pem ]; then
     -days 365 -subj "/CN=CloudRDP" 2>/dev/null
 fi
 
-# Rewrite xrdp.ini: comment out [Xorg] block and ensure a clean [Xvnc] section exists.
-# This is the most reliable way to force Xvnc backend in headless/VM environments.
-sudo python3 -c "
-import re
-with open('/etc/xrdp/xrdp.ini', 'r') as f:
-    content = f.read()
+# Fix xrdp.ini: comment out [Xorg], update vnc-any defaults, add clean [Xvnc] section
+# Using sed + tee (reliable) instead of Python heredoc (can fail silently in GHA)
 
-# Comment out [Xorg] section entirely
-def comment_block(match):
-    block = match.group(0)
-    return '\n'.join(('# ' + line) if line.strip() and not line.startswith('#') else line for line in block.split('\n'))
+# 1. Comment out the [Xorg] section to prevent Xorg from being used
+sudo sed -i '/^\[Xorg\]/,/^\[/{/^\[Xorg\]/!{/^\[/!s/^/# /}}' /etc/xrdp/xrdp.ini
 
-content = re.sub(r'(?ms)^\[Xorg\].*?(?=^\[|\Z)', comment_block, content)
+# 2. Remove any existing [Xvnc] section
+sudo sed -i '/^\[Xvnc\]/,/^\[/{/^\[Xvnc\]/,/^\[/{/^\[Xvnc\]/d;/^\[/!d}}' /etc/xrdp/xrdp.ini
 
-# Remove any existing [Xvnc] section so we can rewrite it cleanly
-content = re.sub(r'(?ms)^\[Xvnc\].*?(?=^\[|\Z)', '', content)
+# 3. Append a clean, explicit [Xvnc] section at the end
+sudo tee -a /etc/xrdp/xrdp.ini > /dev/null << 'XVNCEOF'
 
-# Append a clean, explicit Xvnc section
-xvnc_section = '''
 [Xvnc]
 name=Xvnc
 lib=libvnc.so
@@ -176,21 +169,52 @@ password=ask
 ip=127.0.0.1
 port=-1
 delay_ms=2000
-#
-# Parameter for Xvnc
-#
-#xvnc_opt=-SecurityTypes None
-'''
-content = content.rstrip() + '\n' + xvnc_section
+XVNCEOF
 
-with open('/etc/xrdp/xrdp.ini', 'w') as f:
-    f.write(content)
-"
+echo "  xrdp.ini sessions after fix:"
+sudo grep '^\[' /etc/xrdp/xrdp.ini
+
+# 4. Also update [vnc-any] defaults so it auto-points to localhost:5900
+# This makes vnc-any work instantly without manual IP entry
+sudo sed -i '/^\[vnc-any\]/,/^\[/{s/^ip=.*/ip=127.0.0.1/;s/^port=.*/port=5900/}' /etc/xrdp/xrdp.ini || true
 
 # ---- [4/5] Start Services ----
 echo "--- [4/5] Starting Services ---"
 
-# XRDP services will be started
+# Start a tightvncserver on display :0 (port 5900) as runner user.
+# This enables the vnc-any session to connect via 127.0.0.1:5900.
+# Without this, vnc-any shows a blank IP field and can't connect.
+sudo su - runner -c "mkdir -p ~/.vnc"
+# Set VNC password (8-char max for tightvncserver)
+echo "CloudRDP2026!" | sudo su - runner -c "vncpasswd -f > ~/.vnc/passwd && chmod 600 ~/.vnc/passwd" 2>/dev/null || \
+  sudo su - runner -c "printf 'CloudRDP2026!\nCloudRDP2026!\nn\n' | vncpasswd" 2>/dev/null || true
+
+# Kill any stale VNC servers first
+sudo su - runner -c "tightvncserver -kill :0 2>/dev/null || true; tightvncserver -kill :1 2>/dev/null || true"
+
+# Start VNC server on :0 (port 5900) with LXDE
+sudo su - runner -c "export XDG_RUNTIME_DIR=/run/user/1001; tightvncserver :0 -geometry 1280x800 -depth 24 -dpi 96 2>&1" || \
+sudo su - runner -c "export XDG_RUNTIME_DIR=/run/user/1001; tightvncserver :1 -geometry 1280x800 -depth 24 -dpi 96 2>&1" || true
+
+# Write LXDE startup for VNC sessions
+sudo su - runner -c "cat > ~/.vnc/xstartup << 'VNCEOF'
+#!/bin/bash
+unset SESSION_MANAGER
+unset DBUS_SESSION_BUS_ADDRESS
+export XDG_RUNTIME_DIR=/run/user/\$(id -u)
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=LXDE
+export DESKTOP_SESSION=LXDE
+mkdir -p \${XDG_RUNTIME_DIR}
+chmod 700 \${XDG_RUNTIME_DIR}
+exec dbus-launch --exit-with-session startlxde
+VNCEOF
+chmod +x ~/.vnc/xstartup"
+
+sleep 2
+echo "  VNC Display :0 (port 5900) — $(sudo su - runner -c 'ls ~/.vnc/*.pid 2>/dev/null && echo running || echo not started')"
+
+# Start XRDP services
 sudo systemctl enable xrdp
 sudo systemctl restart xrdp
 sudo systemctl restart xrdp-sesman
