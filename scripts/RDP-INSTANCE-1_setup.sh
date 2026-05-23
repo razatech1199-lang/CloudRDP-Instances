@@ -18,6 +18,7 @@ sudo apt-get update -qy
 sudo apt-get install -y \
   xrdp \
   xorgxrdp \
+  xserver-xorg-legacy \
   tightvncserver \
   lxde-core \
   lxterminal \
@@ -95,7 +96,8 @@ ResultActive=yes
 PKEOF
 
 # Allow non-console X sessions (headless fix)
-sudo sed -i 's/allowed_users=console/allowed_users=anybody/g' /etc/X11/Xwrapper.config 2>/dev/null || true
+sudo mkdir -p /etc/X11
+echo "allowed_users=anybody" | sudo tee /etc/X11/Xwrapper.config > /dev/null
 
 # Optimize XRDP settings for tunneled connections
 sudo sed -i 's/^security_layer=.*/security_layer=rdp/g' /etc/xrdp/xrdp.ini
