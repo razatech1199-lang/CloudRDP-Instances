@@ -273,7 +273,6 @@ fi
 
 # Start tmate in a detached session
 tmate -S /tmp/tmate.sock new-session -d
-tmate -S /tmp/tmate.sock wait-for-connection
 
 # Retrieve the SSH connection string
 TUNNEL_URL=""
