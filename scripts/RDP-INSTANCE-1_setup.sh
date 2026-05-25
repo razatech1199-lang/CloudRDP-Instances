@@ -147,21 +147,25 @@ fi
 # display :1 (port 5901).
 # -------------------------------------------------------
 
-# Disable the [Xorg] and built-in [Xvnc] sections
-sudo sed -i 's/^\[Xorg\]/# [Xorg]/' /etc/xrdp/xrdp.ini
-sudo sed -i 's/^\[Xvnc\]/# [Xvnc]/' /etc/xrdp/xrdp.ini
+# Comment out all default session sections in the stock xrdp.ini to avoid confusion/fallback
+sudo sed -i 's/^\[Xorg\]/# \[Xorg\]/g' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^\[Xvnc\]/# \[Xvnc\]/g' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^\[vnc-any\]/# \[vnc-any\]/g' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^\[neutrinordp-any\]/# \[neutrinordp-any\]/g' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^\[xrdp/# \[xrdp/g' /etc/xrdp/xrdp.ini 2>/dev/null || true
 
 # Set Xvnc as the auto-run session in [Globals]
 sudo sed -i 's/^autorun=.*/autorun=Xvnc/' /etc/xrdp/xrdp.ini || true
 
 # Append a clean, explicit [Xvnc] block pointing to port 5901 (display :1)
+# Using username=runner and password=CloudRDP to allow seamless auto-login bypass.
 sudo tee -a /etc/xrdp/xrdp.ini > /dev/null << 'XVNCEOF'
 
 [Xvnc]
 name=Xvnc
 lib=libvnc.so
-username=ask
-password=ask
+username=runner
+password=CloudRDP
 ip=127.0.0.1
 port=5901
 delay_ms=2000
