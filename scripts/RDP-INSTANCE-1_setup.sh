@@ -262,73 +262,36 @@ sudo apt-get remove -y xfce4-power-manager xscreensaver light-locker 2>/dev/null
 echo 'd /run/user/1001 0700 runner runner -' | sudo tee /etc/tmpfiles.d/runner-runtime.conf > /dev/null
 sudo systemd-tmpfiles --create /etc/tmpfiles.d/runner-runtime.conf 2>/dev/null || true
 
-# ---- [5/5] Start Bore Tunnel & Report ----
-echo "--- [5/5] Starting Bore Tunnel ---"
+# ---- [5/5] Start Tmate Tunnel & Report ----
+echo "--- [5/5] Starting Tmate Tunnel ---"
 
-wget -q https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
-tar -xf bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz
-sudo mv bore /usr/local/bin/
-sudo chmod +x /usr/local/bin/bore
+# Install tmate if not present
+if ! command -v tmate &> /dev/null; then
+  sudo apt-get update -qy
+  sudo apt-get install -y tmate
+fi
 
-# Create a re-report helper script that runs every time bore restarts
-# It reads the new tunnel address from journalctl and POSTs it back
-sudo tee /usr/local/bin/bore-reporter.sh > /dev/null << REPORTEOF
-#!/bin/bash
-BACKEND_URL="${BACKEND_URL}"
-INSTANCE_ID="${INSTANCE_ID}"
+# Start tmate in a detached session
+tmate -S /tmp/tmate.sock new-session -d
+tmate -S /tmp/tmate.sock wait-for-connection
 
-sleep 6
-for i in \$(seq 1 20); do
-    TUNNEL_URL=\$(journalctl -u bore.service -n 100 --no-pager 2>/dev/null | grep -oE "bore\\.pub:[0-9]+" | tail -n 1)
-    if [ -n "\${TUNNEL_URL}" ]; then
-        HTTP_CODE=\$(curl -sSL -k -o /dev/null -w "%{http_code}" \
-            -X POST "\${BACKEND_URL}/instance/\${INSTANCE_ID}/report" \
-            -H "Content-Type: application/json" \
-            -H "Bypass-Tunnel-Reminder: true" \
-            -d "{\"ip_address\": \"\${TUNNEL_URL}\"}" 2>/dev/null || echo "000")
-        echo "[Reporter] Reported \${TUNNEL_URL} — HTTP \${HTTP_CODE}"
-        [ "\${HTTP_CODE}" = "200" ] && break
-    fi
-    sleep 3
-done
-REPORTEOF
-sudo chmod +x /usr/local/bin/bore-reporter.sh
-
-# Bore systemd service — tunnels XRDP port 3389
-sudo tee /etc/systemd/system/bore.service > /dev/null << 'BOREEOF'
-[Unit]
-Description=Bore Tunnel (XRDP port 3389)
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=/usr/local/bin/bore local 3389 --to bore.pub
-ExecStartPost=/usr/local/bin/bore-reporter.sh
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-BOREEOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable --now bore.service
-sleep 8
-
-# Read the initial tunnel address
+# Retrieve the SSH connection string
 TUNNEL_URL=""
-for i in $(seq 1 20); do
-    TUNNEL_URL=$(sudo journalctl -u bore.service -n 100 | grep -oE "bore\.pub:[0-9]+" | tail -n 1)
-    [ -n "$TUNNEL_URL" ] && break
-    sleep 2
+for i in $(seq 1 15); do
+  SSH_CONN=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
+  if [ -n "$SSH_CONN" ] && [[ "$SSH_CONN" == ssh* ]]; then
+    # Extract only the username@host (remove the 'ssh ' prefix)
+    TUNNEL_URL=$(echo "$SSH_CONN" | sed 's/^ssh //')
+    break
+  fi
+  sleep 2
 done
 
 if [ -n "$TUNNEL_URL" ]; then
     echo "============================================"
-    echo "  ✅ Tunnel Active: $TUNNEL_URL"
+    echo "  ✅ Tmate Tunnel Active: $TUNNEL_URL"
     echo "  👤 Username: runner"
     echo "  🔑 Password: CloudRDP2026!"
-    echo "  🖥  VNC Port:  5901 (display :1)"
     echo "============================================"
 
     # Write to GitHub Actions summary
@@ -337,11 +300,10 @@ if [ -n "$TUNNEL_URL" ]; then
         echo "**Tunnel Address:** \`$TUNNEL_URL\`" >> $GITHUB_STEP_SUMMARY
         echo "**Username:** \`runner\`" >> $GITHUB_STEP_SUMMARY
         echo "**Password:** \`CloudRDP2026!\`" >> $GITHUB_STEP_SUMMARY
-        echo "**VNC Display:** \`:1\` (port 5901)" >> $GITHUB_STEP_SUMMARY
     fi
 
     # Report tunnel address to backend
-    for attempt in $(seq 1 3); do
+    for attempt in $(seq 1 5); do
         HTTP_CODE=$(curl -sSL -k -o /dev/null -w "%{http_code}" \
             -X POST "${BACKEND_URL}/instance/${INSTANCE_ID}/report" \
             -H "Content-Type: application/json" \
@@ -354,13 +316,9 @@ if [ -n "$TUNNEL_URL" ]; then
 
     echo "CloudRDP: Setup Complete. Waiting for connections..."
 else
-    echo "❌ Bore tunnel failed to start."
-    echo "--- Bore Log ---"
-    sudo journalctl -u bore.service --no-pager -n 30 2>/dev/null || echo "(empty)"
-    echo "--- End Log ---"
-
+    echo "❌ Tmate tunnel failed to start."
     if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-        echo "### ❌ Bore Tunnel Failed to Start" >> $GITHUB_STEP_SUMMARY
+        echo "### ❌ Tmate Tunnel Failed to Start" >> $GITHUB_STEP_SUMMARY
         echo "Check the GitHub Actions logs for details." >> $GITHUB_STEP_SUMMARY
     fi
 fi
