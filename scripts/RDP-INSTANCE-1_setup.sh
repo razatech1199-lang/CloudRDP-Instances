@@ -128,10 +128,8 @@ PKEOF
 sudo mkdir -p /etc/X11
 echo "allowed_users=anybody" | sudo tee /etc/X11/Xwrapper.config > /dev/null
 
-# Optimize XRDP settings for tunneled connections
-sudo sed -i 's/^security_layer=.*/security_layer=rdp/g' /etc/xrdp/xrdp.ini
-sudo sed -i 's/^crypt_level=.*/crypt_level=low/g' /etc/xrdp/xrdp.ini
-sudo sed -i 's/^max_bpp=.*/max_bpp=24/g' /etc/xrdp/xrdp.ini
+# Add xrdp user to ssl-cert group so it can read keys
+sudo usermod -aG ssl-cert xrdp 2>/dev/null || true
 
 # Generate TLS certs for xrdp
 if [ ! -f /etc/xrdp/cert.pem ]; then
@@ -139,6 +137,14 @@ if [ ! -f /etc/xrdp/cert.pem ]; then
     -keyout /etc/xrdp/key.pem -out /etc/xrdp/cert.pem \
     -days 365 -subj "/CN=CloudRDP" 2>/dev/null
 fi
+sudo chown root:ssl-cert /etc/xrdp/cert.pem /etc/xrdp/key.pem || true
+sudo chmod 640 /etc/xrdp/key.pem || true
+sudo chmod 644 /etc/xrdp/cert.pem || true
+
+# Optimize XRDP settings for negotiate security (fixes Windows 11 RC4 deprecation hang)
+sudo sed -i 's/^security_layer=.*/security_layer=negotiate/g' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^crypt_level=.*/crypt_level=high/g' /etc/xrdp/xrdp.ini
+sudo sed -i 's/^max_bpp=.*/max_bpp=24/g' /etc/xrdp/xrdp.ini
 
 # -------------------------------------------------------
 # Write a CLEAN xrdp.ini — no fragile sed chain-patching.
