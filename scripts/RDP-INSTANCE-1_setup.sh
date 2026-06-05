@@ -17,14 +17,34 @@ export INSTANCE_ID="$2"
 
 send_log() {
   local msg="$1"
+  local json_payload
+  if command -v jq &>/dev/null; then
+    json_payload=$(jq -n --arg msg "$msg" '{message: $msg}')
+  else
+    # Simple shell-based JSON string escaping fallback
+    local escaped
+    escaped=$(echo -n "$msg" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g')
+    json_payload="{\"message\": \"$escaped\"}"
+  fi
   curl -s -k -X POST "${BACKEND_URL}/instance/${INSTANCE_ID}/log" \
     -H "Content-Type: application/json" \
-    -d "{\"message\": \"$msg\"}" &>/dev/null || true
+    -d "$json_payload" &>/dev/null || true
 }
 
 send_log "[LOGGER] 📡 Remote log streamer started on GHA runner."
 send_log "[DIAG] 🔧 User: $(whoami), UID: $(id -u)"
 send_log "[DIAG] 🔧 Hostname: $(hostname)"
+
+# Dump systemd journals for troubleshooting
+send_log "[DIAG] 🔧 vncserver journal:"
+journalctl -u vncserver --no-pager -n 40 2>&1 | while read -r line; do
+  send_log "[VNC-JOURNAL] $line"
+done
+
+send_log "[DIAG] 🔧 xrdp journal:"
+journalctl -u xrdp --no-pager -n 40 2>&1 | while read -r line; do
+  send_log "[XRDP-JOURNAL] $line"
+done
 
 # Monitor xrdp logs
 touch /var/log/xrdp.log /var/log/xrdp-sesman.log 2>/dev/null || true
@@ -277,6 +297,7 @@ User=runner
 Group=runner
 WorkingDirectory=/home/runner
 Environment=USER=runner
+Environment=HOME=/home/runner
 Environment=XDG_RUNTIME_DIR=/run/user/1001
 ExecStartPre=-/usr/bin/tightvncserver -kill :1
 ExecStart=/usr/bin/tightvncserver :1 -geometry 1280x800 -depth 24 -dpi 96
