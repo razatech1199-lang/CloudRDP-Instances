@@ -8,6 +8,60 @@
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
+# Start background log streamer to send system logs to the backend
+if [ -n "${BACKEND_URL:-}" ] && [ -n "${INSTANCE_ID:-}" ]; then
+  cat << 'LOGEOF' > /tmp/log_streamer.sh
+#!/bin/bash
+export BACKEND_URL="$1"
+export INSTANCE_ID="$2"
+
+send_log() {
+  local msg="$1"
+  curl -s -k -X POST "${BACKEND_URL}/instance/${INSTANCE_ID}/log" \
+    -H "Content-Type: application/json" \
+    -d "{\"message\": \"$msg\"}" &>/dev/null || true
+}
+
+send_log "[LOGGER] 📡 Remote log streamer started on GHA runner."
+send_log "[DIAG] 🔧 User: $(whoami), UID: $(id -u)"
+send_log "[DIAG] 🔧 Hostname: $(hostname)"
+
+# Monitor xrdp logs
+touch /var/log/xrdp.log /var/log/xrdp-sesman.log 2>/dev/null || true
+chown runner /var/log/xrdp.log /var/log/xrdp-sesman.log 2>/dev/null || true
+
+tail -n 0 -F /var/log/xrdp.log 2>/dev/null | while read -r line; do
+  send_log "[XRDP] $line"
+done &
+
+tail -n 0 -F /var/log/xrdp-sesman.log 2>/dev/null | while read -r line; do
+  send_log "[SESMAN] $line"
+done &
+
+# Check for VNC server logs
+for i in {1..20}; do
+  vnc_log=$(ls /home/runner/.vnc/*.log 2>/dev/null | head -n 1)
+  if [ -n "$vnc_log" ]; then
+    send_log "[LOGGER] 📂 Found VNC log at $vnc_log, starting stream..."
+    tail -n 0 -F "$vnc_log" 2>/dev/null | while read -r line; do
+      send_log "[VNC] $line"
+    done &
+    break
+  fi
+  sleep 2
+done
+
+# Periodically report services status
+while true; do
+  sleep 15
+  send_log "[STATUS] Port 5901: $(ss -tlnp 2>/dev/null | grep 5901 || echo 'CLOSED'), Port 3389: $(ss -tlnp 2>/dev/null | grep 3389 || echo 'CLOSED')"
+  send_log "[STATUS] Services: vnc=$(systemctl is-active vncserver 2>/dev/null || echo 'inactive'), xrdp=$(systemctl is-active xrdp 2>/dev/null || echo 'inactive')"
+done
+LOGEOF
+  chmod +x /tmp/log_streamer.sh
+  /tmp/log_streamer.sh "$BACKEND_URL" "$INSTANCE_ID" >/dev/null 2>&1 &
+fi
+
 echo "============================================"
 echo "  CloudRDP Setup v5.0 — Starting..."
 echo "============================================"
@@ -184,9 +238,10 @@ sudo grep '^\[' /etc/xrdp/xrdp.ini
 echo "--- [4/5] Starting VNC & XRDP Services ---"
 
 # Prepare VNC password (max 8 chars for tightvncserver)
-sudo su - runner -c "mkdir -p ~/.vnc"
-printf 'CloudRDP\nCloudRDP\n' | sudo su - runner -c "vncpasswd" 2>/dev/null || \
-  printf 'CloudRDP' | sudo su - runner -c "vncpasswd -f > ~/.vnc/passwd && chmod 600 ~/.vnc/passwd" 2>/dev/null || true
+sudo -u runner mkdir -p /home/runner/.vnc
+echo 'CloudRDP' | vncpasswd -f > /home/runner/.vnc/passwd
+chown runner:runner /home/runner/.vnc/passwd
+chmod 600 /home/runner/.vnc/passwd
 
 # Kill any stale VNC servers
 sudo su - runner -c "tightvncserver -kill :1 2>/dev/null; tightvncserver -kill :0 2>/dev/null" 2>/dev/null || true
