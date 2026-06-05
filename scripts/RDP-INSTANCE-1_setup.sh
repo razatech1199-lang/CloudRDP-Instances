@@ -348,31 +348,104 @@ sudo systemd-tmpfiles --create /etc/tmpfiles.d/runner-runtime.conf 2>/dev/null |
 echo "--- [5/5] Starting TCP Tunnel ---"
 
 TUNNEL_URL=""
+NGROK_PID=0
 PINGGY_PID=0
 SERVEO_PID=0
+BORE_PID=0
 
-# Try Pinggy first (direct TCP tunnel)
-echo "Attempting to start Pinggy tunnel..."
-ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R 0:localhost:3389 tcp@pinggy.io > /tmp/pinggy.log 2>&1 &
-PINGGY_PID=$!
+# Generate SSH key pair for tunneling (required by Pinggy and Serveo)
+echo "Generating SSH key pair..."
+mkdir -p /home/runner/.ssh
+chmod 700 /home/runner/.ssh
+if [ ! -f /home/runner/.ssh/id_rsa ]; then
+  ssh-keygen -t rsa -b 2048 -N "" -f /home/runner/.ssh/id_rsa
+  chown -R runner:runner /home/runner/.ssh
+  chmod 600 /home/runner/.ssh/id_rsa
+  chmod 644 /home/runner/.ssh/id_rsa.pub
+fi
 
-for i in {1..15}; do
-  if [ -f /tmp/pinggy.log ]; then
-    ADDR=$(grep -oE 'tport\.pinggy\.io:[0-9]+' /tmp/pinggy.log | head -n 1 || echo "")
-    if [ -n "$ADDR" ]; then
-      TUNNEL_URL="$ADDR"
-      echo "✅ Pinggy Tunnel Active: $TUNNEL_URL"
-      break
-    fi
+# 1. Try Ngrok TCP Tunnel first if NGROK_TOKEN is set
+if [ -n "${NGROK_TOKEN:-}" ] && [ "${NGROK_TOKEN}" != "PASTE_YOUR_TOKEN_HERE" ]; then
+  echo "Attempting to start Ngrok TCP tunnel..."
+  if ! command -v ngrok &>/dev/null; then
+    curl -sL https://bin.equinox.io/c/bNy8QzbqNuO/ngrok-v3-stable-linux-amd64.tgz | tar zxf - -C /tmp
+    sudo mv /tmp/ngrok /usr/local/bin/ngrok 2>/dev/null || mv /tmp/ngrok /tmp/ngrok-bin
   fi
-  sleep 2
-done
+  NGROK_BIN=$(command -v ngrok || echo "/tmp/ngrok-bin")
+  $NGROK_BIN config add-authtoken "${NGROK_TOKEN}"
+  $NGROK_BIN tcp 3389 --log=stdout > /tmp/ngrok.log 2>&1 &
+  NGROK_PID=$!
+  
+  for i in {1..15}; do
+    if [ -f /tmp/ngrok.log ]; then
+      ADDR=$(grep -oE 'tcp://[0-9a-zA-Z\.-]+:[0-9]+' /tmp/ngrok.log | head -n 1 | sed 's/tcp:\/\///' || echo "")
+      if [ -n "$ADDR" ]; then
+        TUNNEL_URL="$ADDR"
+        echo "✅ Ngrok TCP Tunnel Active: $TUNNEL_URL"
+        break
+      fi
+    fi
+    sleep 2
+  done
+  
+  if [ -z "$TUNNEL_URL" ]; then
+    echo "Ngrok tunnel failed to start."
+    kill $NGROK_PID 2>/dev/null || true
+  fi
+fi
 
-# If Pinggy failed, try Serveo
+# 2. Try Pinggy TCP Tunnel over port 443 (bypass port 22 blocking/throttling)
 if [ -z "$TUNNEL_URL" ]; then
-  echo "Pinggy failed. Attempting Serveo..."
-  kill $PINGGY_PID 2>/dev/null || true
-  ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R 0:localhost:3389 serveo.net > /tmp/serveo.log 2>&1 &
+  echo "Attempting to start Pinggy tunnel over port 443..."
+  ssh -p 443 -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=15 -R 0:localhost:3389 tcp@pinggy.io > /tmp/pinggy443.log 2>&1 &
+  PINGGY_PID=$!
+  
+  for i in {1..15}; do
+    if [ -f /tmp/pinggy443.log ]; then
+      ADDR=$(grep -oE 'tport\.pinggy\.io:[0-9]+' /tmp/pinggy443.log | head -n 1 || echo "")
+      if [ -n "$ADDR" ]; then
+        TUNNEL_URL="$ADDR"
+        echo "✅ Pinggy Port 443 Tunnel Active: $TUNNEL_URL"
+        break
+      fi
+    fi
+    sleep 2
+  done
+  
+  if [ -z "$TUNNEL_URL" ]; then
+    echo "Pinggy port 443 tunnel failed."
+    kill $PINGGY_PID 2>/dev/null || true
+  fi
+fi
+
+# 3. Try Pinggy TCP Tunnel over standard port 22
+if [ -z "$TUNNEL_URL" ]; then
+  echo "Attempting to start Pinggy tunnel over port 22..."
+  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=15 -R 0:localhost:3389 tcp@pinggy.io > /tmp/pinggy22.log 2>&1 &
+  PINGGY_PID=$!
+  
+  for i in {1..15}; do
+    if [ -f /tmp/pinggy22.log ]; then
+      ADDR=$(grep -oE 'tport\.pinggy\.io:[0-9]+' /tmp/pinggy22.log | head -n 1 || echo "")
+      if [ -n "$ADDR" ]; then
+        TUNNEL_URL="$ADDR"
+        echo "✅ Pinggy Port 22 Tunnel Active: $TUNNEL_URL"
+        break
+      fi
+    fi
+    sleep 2
+  done
+  
+  if [ -z "$TUNNEL_URL" ]; then
+    echo "Pinggy port 22 tunnel failed."
+    kill $PINGGY_PID 2>/dev/null || true
+  fi
+fi
+
+# 4. Try Serveo TCP Tunnel
+if [ -z "$TUNNEL_URL" ]; then
+  echo "Attempting to start Serveo tunnel..."
+  ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ServerAliveInterval=15 -R 0:localhost:3389 serveo.net > /tmp/serveo.log 2>&1 &
   SERVEO_PID=$!
   
   for i in {1..15}; do
@@ -386,12 +459,44 @@ if [ -z "$TUNNEL_URL" ]; then
     fi
     sleep 2
   done
+  
+  if [ -z "$TUNNEL_URL" ]; then
+    echo "Serveo tunnel failed."
+    kill $SERVEO_PID 2>/dev/null || true
+  fi
 fi
 
-# Last resort: Tmate
+# 5. Try Bore TCP Tunnel
 if [ -z "$TUNNEL_URL" ]; then
-  echo "Serveo failed. Falling back to Tmate..."
-  kill $SERVEO_PID 2>/dev/null || true
+  echo "Attempting to start Bore tunnel..."
+  echo "Downloading Bore CLI..."
+  curl -sL https://github.com/ekzhang/bore/releases/download/v0.5.1/bore-v0.5.1-x86_64-unknown-linux-musl.tar.gz | tar zxf - -C /tmp
+  
+  echo "Starting Bore tunnel..."
+  /tmp/bore local 3389 --to bore.pub > /tmp/bore.log 2>&1 &
+  BORE_PID=$!
+  
+  for i in {1..15}; do
+    if [ -f /tmp/bore.log ]; then
+      ADDR=$(grep -oE 'bore\.pub:[0-9]+' /tmp/bore.log | head -n 1 || echo "")
+      if [ -n "$ADDR" ]; then
+        TUNNEL_URL="$ADDR"
+        echo "✅ Bore Tunnel Active: $TUNNEL_URL"
+        break
+      fi
+    fi
+    sleep 2
+  done
+  
+  if [ -z "$TUNNEL_URL" ]; then
+    echo "Bore tunnel failed."
+    kill $BORE_PID 2>/dev/null || true
+  fi
+fi
+
+# Last resort fallback: Tmate (terminal only)
+if [ -z "$TUNNEL_URL" ]; then
+  echo "All direct tunnels failed. Falling back to Tmate (terminal only)..."
   # Install tmate if not present
   if ! command -v tmate &> /dev/null; then
     sudo apt-get update -qy
@@ -403,7 +508,7 @@ if [ -z "$TUNNEL_URL" ]; then
     SSH_CONN=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
     if [ -n "$SSH_CONN" ] && [[ "$SSH_CONN" == ssh* ]]; then
       TUNNEL_URL=$(echo "$SSH_CONN" | sed 's/^ssh //')
-      echo "✅ Tmate Tunnel Active: $TUNNEL_URL"
+      echo "✅ Tmate Terminal Active: $TUNNEL_URL"
       break
     fi
     sleep 2
