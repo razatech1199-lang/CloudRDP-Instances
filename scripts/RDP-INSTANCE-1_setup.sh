@@ -344,33 +344,75 @@ sudo apt-get remove -y xfce4-power-manager xscreensaver light-locker 2>/dev/null
 echo 'd /run/user/1001 0700 runner runner -' | sudo tee /etc/tmpfiles.d/runner-runtime.conf > /dev/null
 sudo systemd-tmpfiles --create /etc/tmpfiles.d/runner-runtime.conf 2>/dev/null || true
 
-# ---- [5/5] Start Tmate Tunnel & Report ----
-echo "--- [5/5] Starting Tmate Tunnel ---"
+# ---- [5/5] Start TCP Tunnel & Report ----
+echo "--- [5/5] Starting TCP Tunnel ---"
 
-# Install tmate if not present
-if ! command -v tmate &> /dev/null; then
-  sudo apt-get update -qy
-  sudo apt-get install -y tmate
-fi
-
-# Start tmate in a detached session
-tmate -S /tmp/tmate.sock new-session -d
-
-# Retrieve the SSH connection string
 TUNNEL_URL=""
-for i in $(seq 1 15); do
-  SSH_CONN=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
-  if [ -n "$SSH_CONN" ] && [[ "$SSH_CONN" == ssh* ]]; then
-    # Extract only the username@host (remove the 'ssh ' prefix)
-    TUNNEL_URL=$(echo "$SSH_CONN" | sed 's/^ssh //')
-    break
+PINGGY_PID=0
+SERVEO_PID=0
+
+# Try Pinggy first (direct TCP tunnel)
+echo "Attempting to start Pinggy tunnel..."
+ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R 0:localhost:3389 tcp@pinggy.io > /tmp/pinggy.log 2>&1 &
+PINGGY_PID=$!
+
+for i in {1..15}; do
+  if [ -f /tmp/pinggy.log ]; then
+    ADDR=$(grep -oE 'tport\.pinggy\.io:[0-9]+' /tmp/pinggy.log | head -n 1 || echo "")
+    if [ -n "$ADDR" ]; then
+      TUNNEL_URL="$ADDR"
+      echo "✅ Pinggy Tunnel Active: $TUNNEL_URL"
+      break
+    fi
   fi
   sleep 2
 done
 
+# If Pinggy failed, try Serveo
+if [ -z "$TUNNEL_URL" ]; then
+  echo "Pinggy failed. Attempting Serveo..."
+  kill $PINGGY_PID 2>/dev/null || true
+  ssh -o StrictHostKeyChecking=no -o ServerAliveInterval=15 -R 0:localhost:3389 serveo.net > /tmp/serveo.log 2>&1 &
+  SERVEO_PID=$!
+  
+  for i in {1..15}; do
+    if [ -f /tmp/serveo.log ]; then
+      ADDR=$(grep -oE 'serveo\.net:[0-9]+' /tmp/serveo.log | head -n 1 || echo "")
+      if [ -n "$ADDR" ]; then
+        TUNNEL_URL="$ADDR"
+        echo "✅ Serveo Tunnel Active: $TUNNEL_URL"
+        break
+      fi
+    fi
+    sleep 2
+  done
+fi
+
+# Last resort: Tmate
+if [ -z "$TUNNEL_URL" ]; then
+  echo "Serveo failed. Falling back to Tmate..."
+  kill $SERVEO_PID 2>/dev/null || true
+  # Install tmate if not present
+  if ! command -v tmate &> /dev/null; then
+    sudo apt-get update -qy
+    sudo apt-get install -y tmate
+  fi
+  tmate -S /tmp/tmate.sock new-session -d
+  
+  for i in $(seq 1 15); do
+    SSH_CONN=$(tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}' 2>/dev/null || echo "")
+    if [ -n "$SSH_CONN" ] && [[ "$SSH_CONN" == ssh* ]]; then
+      TUNNEL_URL=$(echo "$SSH_CONN" | sed 's/^ssh //')
+      echo "✅ Tmate Tunnel Active: $TUNNEL_URL"
+      break
+    fi
+    sleep 2
+  done
+fi
+
 if [ -n "$TUNNEL_URL" ]; then
     echo "============================================"
-    echo "  ✅ Tmate Tunnel Active: $TUNNEL_URL"
+    echo "  ✅ Tunnel Active: $TUNNEL_URL"
     echo "  👤 Username: runner"
     echo "  🔑 Password: CloudRDP2026!"
     echo "============================================"
@@ -397,9 +439,9 @@ if [ -n "$TUNNEL_URL" ]; then
 
     echo "CloudRDP: Setup Complete. Waiting for connections..."
 else
-    echo "❌ Tmate tunnel failed to start."
+    echo "❌ Tunnel failed to start."
     if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-        echo "### ❌ Tmate Tunnel Failed to Start" >> $GITHUB_STEP_SUMMARY
+        echo "### ❌ Tunnel Failed to Start" >> $GITHUB_STEP_SUMMARY
         echo "Check the GitHub Actions logs for details." >> $GITHUB_STEP_SUMMARY
     fi
 fi
